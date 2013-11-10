@@ -1,0 +1,19 @@
+stock_data-access.pm
+	get_data.pl
+	get_info.pl
+	get_random_symbol.pl
+	get_symbol.pl
+	get_covar.pl
+markov_symbol.pl: stepify.pl  |  eval_pred.pl
+markov.pm
+	markov_online.pl
+
+genetic_symbol.pl: 
+perl genetic_symbol.pl AAPL 10
+sh: get_data.pl: command not found
+Best of each generation:
+cat: data.dat: No such file or directory
+
+$ENV{PORTF_DBMS}
+
+export PATH=.:$PATH
