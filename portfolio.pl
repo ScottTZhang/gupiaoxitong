@@ -31,13 +31,9 @@ use Time::CTime;
 use Date::Manip;
 use Finance::QuoteHist::Yahoo;
 
-sub foo {
-    print "a";
-}
 
 
-
-# The    new   session cookie will contain the user's name and password so that
+# The session cookie will contain the user's name and password so that
 # he doesn't have to type it again and again.
 #
 # "PortfolioSession"=>"user/password"
