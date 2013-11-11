@@ -329,6 +329,21 @@ if($action eq "view"){
     }
 }
 
+if($action eq "viewstock"){
+    if(!$run){
+       if(url_param('p_id') && param('symbol')){
+         print header,             
+         start_html('hello world'),
+         h1('hello world'),
+	 
+         end_html;         
+         }
+    }   
+    else{
+	print "hello";
+    }
+}
+
 if($action eq "buy_stock"){
     my $p_id = param('p_id');
 
@@ -429,6 +444,18 @@ if($action eq 'history'){
             "MM/DD/YEAR",p,
             "To", textfield( -name => 'to' ),
             "MM/DD/YEAR", p,
+	    "Time Range:",popup_menu(
+		-name   => 't',
+		-values => [
+			'',
+			'Yesterday',
+			'Last week to now',
+			'Last month to now',
+			'Last quarter to now',
+			'Last year to now',
+			'Last five years to now'
+		]
+	  ),p,
             "Plot or Table:",radio_group(-name=>'distype',
                 -values=>['Table','Plot']),p, 
             hidden( -name => 'pid', default => [$p_id] ),
@@ -444,6 +471,7 @@ if($action eq 'history'){
         my $symbol = param('symbol');
         my $from=param('from');
         my $to = param('to');
+	my $t = param('t');
         my $distype=param('distype');
         my $hold = param('hold');
         my $p_id = param('pid');
@@ -456,7 +484,7 @@ if($action eq 'history'){
             if ($distype ne "Plot") {
                 print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
             }
-            getHist($symbol,$hold,$distype,$options,$from,$to);
+            getHist($symbol,$hold,$distype,$options,$from,$to,$t);
         }
     }
 }
@@ -494,6 +522,7 @@ if($action eq "statistics"){
             hidden(-name=>'run',default=>['1']),
             submit(-name=>'vol', -value => 'View Volatility'),
             submit(-name=>'cov',-value=>'View Correlation'),
+            submit(-name=>'beta',-value=>'View Beta'),
             p,
             end_form;
         } 
@@ -523,6 +552,12 @@ if($action eq "statistics"){
                 print "choose at least two stocks.<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">return</p>";
             }
         }
+	if(param('beta')){
+ 	    
+	    my $beta = getBeta($holdings,$from,$to);
+	    print $beta;
+            print "choose at least two stocks.<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">return</p>";
+	}
     }	
 }
 
@@ -696,16 +731,130 @@ sub SellStock{
     return $@;
 }
 
+sub downloadIXIC{
+    my $nfrom='last year';
+    my $nto = 'now';
+    $nfrom = parsedate($nfrom);
+    $nfrom = ParseDateString("epoch $nfrom");
+    $nto = parsedate($nto);
+    $nto = ParseDateString("epoch $nto");
+    my %query=(symbols => ['^IXIC'],
+        start_date => $nfrom,
+        end_date => $nto,
+    );
+    my $q = new Finance::QuoteHist::Yahoo(%query);
+    foreach my $row ($q->quotes()) {
+        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
+        my @line;
+        my $newd = parsedate($qdate);
+        push(@line,$qsymbol);
+        push(@line,$newd);
+        push(@line,$qopen);
+        push(@line,$qhigh);
+        push(@line,$qlow);
+        push(@line,$qclose);
+        push(@line,$qvolume);
+        ####insert new data into stocks_daily##
+        my $err =DailyAdd(@line);
+    print @line,"<br>";
+   }
+}
 
+
+######## using ^IXIC latest one year data to calculate #######
+sub getBeta{
+    my ($holdings,$from,$to) = @_;   
+    my $out="<h3>Beta of $holdings</h3>";
+    my @stockHolds=split(',',$holdings);
+    my $s1;
+    my $sql;
+    my %covar;
+    my %corrcoeff;
+    my ($count,$mean_f1,$std_f1,$mean_f2, $std_f2)=@_;
+    if (defined $from) { $from=parsedate($from);}
+    if (defined $to) { $to=parsedate($to); }
+
+    for (my $i=0;$i<=$#stockHolds;$i++) {
+        $s1=$stockHolds[$i];
+
+#first, get means and vars for the individual columns that match
+
+            $sql = "select count(*),avg(l.close),stddev(l.close),avg(r.close),stddev(r.close) from Stocks_Daily l join Stocks_Daily r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+            $sql.= " and l.timestamp>=$from" if $from;
+            $sql.= " and l.timestamp<=$to" if $to;
+
+            ($count, $mean_f1,$std_f1, $mean_f2, $std_f2) = ExecStockSQL("ROW",$sql);
+
+#skip this pair if there isn't enough data
+            if ($count<30) { # not enough data
+                $covar{$s1}='NODAT';
+                $corrcoeff{$s1}='NODAT';
+            } else {
+
+                #otherwise get the covariance
+
+                $sql = "select avg((l.close - $mean_f1)*(r.close - $mean_f2)) from Stocks_Daily l join Stocks_Daily r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+                $sql.= " and l.timestamp>= $from" if $from;
+                $sql.= " and l.timestamp<= $to" if $to;
+
+                ($covar{$s1}) = ExecStockSQL("ROW",$sql);
+
+#and the correlationcoeff
+
+                $corrcoeff{$s1} = $covar{$s1}/($std_f2*$std_f2);
+
+            }
+         
+    }
+
+    $out .="<table border=\"1\">
+    <tr><th>------</th>";
+    foreach (@stockHolds){
+        $out.="<th>$_</th>";
+    }  
+    $out.="</tr>";
+    $out .="<tr><td>Beta</td>";
+
+    for (my $i=0;$i<=$#stockHolds;$i++) {
+        $s1=$stockHolds[$i];
+            $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.12f',$corrcoeff{$s1});
+            $out .= "<td>$corrcoeff{$s1}</td>";
+    }
+    $out .= "</tr>";
+    $out.="</tabel>";
+    return $out;
+}
 
 ##new function :  maybe insert into stocks table##
 sub getHist{	
-    my ($symbol,$hold,$distype,$options,$from,$to) = @_;
+    my ($symbol,$hold,$distype,$options,$from,$to,$t) = @_;
+### download from Yahoo!###
     my @data=();
     if($options eq ''){$options = 'close';}
     my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
     if (defined $from) { $from=parsedate($from);}
     if (defined $to) { $to=parsedate($to); }
+	if ($t) {
+		$to = time;
+		if ( $t eq "Yesterday" ) {
+		   $from = $to - 86400;
+		}
+		elsif ( $t eq "Last week to now" ) {
+			$from = $to - 604800;
+		}
+		elsif ( $t eq "Last month to now" ) {
+			$from = $to - 2628000;
+		}
+		elsif ( $t eq "Last quarter to now" ) {
+			$from = $to - 7884000;
+		}
+		elsif ( $t eq "Last year to now" ) {
+			$from = $to - 31540000;
+		}
+		elsif ( $t eq "Last five years to now" ) {
+			$from = $to - 157700000;
+		}
+	}
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.=" union select timestamp,$options from stocks_daily where symbol = '$hold'";
@@ -855,7 +1004,7 @@ sub getCOV{
     }
 
 
-    if ($cotype eq 'cor') {
+    if($cotype eq 'cor') {
         $out .= "<h2>Correlation Coefficient Matrix</h2>";
     } else {
         $out .= "<h2>Covariance Matrix</h2>";
