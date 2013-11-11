@@ -421,7 +421,7 @@ if($action eq 'history'){
             print start_form(-name=>'ViewHistory'),
             "Choose a holding: ",radio_group(-name=>'hold',
                 -values=>\@stockHolds),p,
-            "SYMBOL",textfield(-name=>'symbol'),p,
+            #"SYMBOL",textfield(-name=>'symbol'),p,
             "Choose options: ",checkbox_group(-name=>'options',
                 ###?????get values from databases????### 
                 -values=>['open','low','high','close','volume']),p, 
@@ -702,14 +702,13 @@ sub SellStock{
 sub getHist{	
     my ($symbol,$hold,$distype,$options,$from,$to) = @_;
     my @data=();
-
     if($options eq ''){$options = 'close';}
-    my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$symbol'" ;
+    my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
     if (defined $from) { $from=parsedate($from);}
     if (defined $to) { $to=parsedate($to); }
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
-    $sql.=" union select timestamp,$options from stocks_daily where symbol = '$symbol'";
+    $sql.=" union select timestamp,$options from stocks_daily where symbol = '$hold'";
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
@@ -911,9 +910,13 @@ sub getVOL{
     print "$type $from $to<br>";
     foreach $hold(@stockHolds){
         my @row;
-        my $sql="select count(*),avg($type),stddev($type) from CS339.StocksDaily where symbol ='$hold'";
-        $sql.="and timestamp >=$from " if $from;	
-        $sql.="and timestamp <=$to " if $to;
+        my $sql="select count(*),avg($type),stddev($type) from (select timestamp,$type from CS339.StocksDaily where symbol ='$hold'";
+        $sql.=" and timestamp >=$from" if $from;	
+        $sql.=" and timestamp <=$to" if $to;
+	$sql .= " union select timestamp,$type from stocks_daily where symbol='$hold'";
+        $sql.=" and timestamp >=$from" if $from;	
+        $sql.=" and timestamp <=$to" if $to;
+	$sql .= ")";
         eval{@row=ExecSQL($dbuser,$dbpasswd,$sql,"ROW");};
         my ($cnt,$avg,$steddev) = @row;
         $out.= "<tr><td>$hold</td><td>$cnt</td><td>$avg</td><td>$steddev</td><tr>"; 

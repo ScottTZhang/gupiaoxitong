@@ -27,12 +27,12 @@ create table stocks (
 
 create table stocks_daily (
     symbol  varchar(64) not null,
-    low number not null,
-    high number not null,
-    close number not null,
-    open number not null,
-    volume number not null,
     timestamp number not null,
+    open number not null,
+    high number not null,
+    low number not null,
+    close number not null,
+    volume number not null,
     constraint sd_pk primary key(symbol,timestamp)
 );
 
