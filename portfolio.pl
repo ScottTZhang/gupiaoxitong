@@ -7,8 +7,8 @@ use Time::ParseDate;
 BEGIN {
     $ENV{PORTF_DBMS}="oracle";
     $ENV{PORTF_DB}="cs339";
-    $ENV{PORTF_DBUSER}="tzh240";
-    $ENV{PORTF_DBPASS}="zi9CFos2c";
+    $ENV{PORTF_DBUSER}="qzw056";
+    $ENV{PORTF_DBPASS}="zM0rH5vkt";
 
     unless ($ENV{BEGIN_BLOCK}) {
         use Cwd;
@@ -23,13 +23,12 @@ BEGIN {
 
 use stock_data_access;
 
-
+use Data::Dumper;
 use Finance::Quote;
 use FileHandle;
 use Time::CTime;
 use Date::Manip;
 use Finance::QuoteHist::Yahoo;
-
 
 
 # The session cookie will contain the user's name and password so that
@@ -43,8 +42,8 @@ use Finance::QuoteHist::Yahoo;
 #
 # You need to override these for access to your database
 #
-my $dbuser="tzh240";
-my $dbpasswd="zi9CFos2c";
+my $dbuser="qzw056";
+my $dbpasswd="zM0rH5vkt";
 
 
 my $cookiename="PORTFOLIOSession";
@@ -176,28 +175,32 @@ if (defined($outputcookiecontent)) {
 # The page immediately expires so that it will be refetched if the
 # client ever needs to update it
 #
-print header(-expires=>'now', -cookie=>\@outputcookies);
 
 #
 # Now we finally begin generating back HTML
 #
 #
-print "<html style=\"height: 100\%\">";
-print "<head>";
-print "<title>Portfolio Management</title>";
-print "</head>";
+if (!defined(param("distype")) or param("distype") ne 'Plot') {
+    print header(-expires=>'now', -cookie=>\@outputcookies);
+    print "<html style=\"height: 100\%\">";
+    print "<head>";
+    print "<title>Portfolio Management</title>";
+    print "</head>";
 
-print "<body style=\"height:100\%;margin:0\">";
+    print "<body style=\"height:100\%;margin:0\">";
 
-#
+    #
 # Force device width, for mobile phones, etc
-#
+    #
 #print "<meta name=\"viewport\" content=\"width=device-width\" />\n";
 
 # This tells the web browser to render the page in the style
 # defined in the css file
-#
-print "<style type=\"text/css\">\n\@import \"portfolio.css\";\n</style>\n";
+    #
+    print "<style type=\"text/css\">\n\@import \"portfolio.css\";\n</style>\n";
+} else {
+    print header(-type => 'image/png', -expires => 'now' , -cookie=>\@outputcookies);
+}
 
 
 if($action eq "base"){
@@ -294,8 +297,8 @@ if($action eq "view"){
                 #give a table to show the daily info 
                 my $symbol = $holdings[$i][0];
                 @holdInfo = getDailyInfo($symbol);
-                my $latest_price = getLatestPrice($symbol);
-                my $value = $holdings[$i][1] * $latest_price;
+                my $latest_price = $holdings[$i][1] * getLatestPrice($symbol);
+                my $value = $latest_price;
                 $total_value += $value;
 
                 $out .= "<tr>
@@ -348,7 +351,7 @@ if($action eq "buy_stock"){
         my $symbol = param('symbol');
         my $amount = param('amount');
         my $error;
-        $error = BuyStock($p_id,$symbol,$amount, 10);
+        $error = BuyStock($p_id,$symbol,$amount, getLatestPrice($symbol));
         if($error){
             print "Cannot buy stock: $error";
         }
@@ -392,7 +395,7 @@ if($action eq "sell_stock"){
         my $symbol = param('symbol');
         my $amount = param('amount');
         my $error;
-        $error = SellStock($p_id,$symbol,$amount, 10);
+        $error = SellStock($p_id,$symbol,$amount, getLatestPrice($symbol));
         if($error){
             print "Cannot sell stock: $error";
         }
@@ -448,11 +451,13 @@ if($action eq 'history'){
         my @oldhist;
         my @newhist;
         my $options = join(',',@options);
-        
-	if(param('viewoption')){
-	print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
-        getHist($symbol,$hold,$distype,$options,$from,$to);
-	 }
+
+        if(param('viewoption')){
+            if ($distype ne "Plot") {
+                print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
+            }
+            getHist($symbol,$hold,$distype,$options,$from,$to);
+        }
     }
 }
 
@@ -570,6 +575,21 @@ if($action eq "manage-cash"){
 
 }
 
+
+if($action eq "update-daily-stocks"){
+
+    print "dfd";
+    my @stocks = showStocks();
+    print $#stocks;
+    if ($#stocks >= 0) {
+        for(my $i=0; $i <= $#stocks; $i++){
+            print "$stocks[$i][0]";
+            #DailyAdd('AMD');
+        }
+    }
+
+}
+
 if($action eq "login"){
     if($logincomplain){
         print "login failed. try again.";
@@ -681,34 +701,8 @@ sub SellStock{
 ##new function :  maybe insert into stocks table##
 sub getHist{	
     my ($symbol,$hold,$distype,$options,$from,$to) = @_;
-### download from Yahoo!###
     my @data=();
-    my $nfrom='last year';
-    my $nto = 'now';
-    $nfrom = parsedate($nfrom);
-    $nfrom = ParseDateString("epoch $nfrom");
-    $nto = parsedate($nto);
-    $nto = ParseDateString("epoch $nto");
-    my %query=(symbols => [$symbol],
-        start_date => $nfrom,
-        end_date => $nto,
-    );
-    my $q = new Finance::QuoteHist::Yahoo(%query);
-    foreach my $row ($q->quotes()) {
-        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
-        my @line;
-        my $newd = parsedate($qdate);
-        push(@line,$qsymbol);
-        push(@line,$newd);
-        push(@line,$qopen);
-        push(@line,$qhigh);
-        push(@line,$qlow);
-        push(@line,$qclose);
-        push(@line,$qvolume);
-        ####insert new data into stocks_daily##
-        my $err =DailyAdd(@line);
-    }
-    
+
     if($options eq ''){$options = 'close';}
     my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$symbol'" ;
     if (defined $from) { $from=parsedate($from);}
@@ -719,47 +713,57 @@ sub getHist{
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
-    
+
     @data = ExecStockSQL("2D",$sql);
     ##### select data from stocks_daily##
     if($distype eq "Table"){
-	print "$#data new records<br>";
-	foreach my $line(@data){print "@$line<br>";} 
+        print "$#data new records<br>";
+        foreach my $line(@data){print "@$line<br>";} 
     }
     if($distype eq "Plot"){
-    my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$symbol'" ;
-    if (defined $from) { $from=parsedate($from);}
-    if (defined $to) { $to=parsedate($to); }
-    $sql.= " and timestamp >= $from" if $from;
-    $sql.= " and timestamp <= $to" if $to;
-    $sql.=" union select timestamp,close from stocks_daily where symbol = '$symbol'";
-    $sql.= " and timestamp >= $from" if $from;
-    $sql.= " and timestamp <= $to" if $to;
-    $sql.= ") order by timestamp";
-    
-    my @rows = ExecStockSQL("2D",$sql);
-	#foreach my $line(@rows)
-	#   print "@$line<br>";
-    
-  open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
-  
-  print GNUPLOT "set term png\n";           # we want it to produce a PNG
-  print GNUPLOT "set output\n";             # output the PNG to stdout
-  print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
-  foreach my $r (@rows) {
-    print GNUPLOT $r->[0], "\t", $r->[1], "\n";
-  }
-  print GNUPLOT "e\n"; # end of data
-  #
-  # Here gnuplot will print the image content
-  #
-  close(GNUPLOT);
-	}    
+        my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$symbol'" ;
+        if (defined $from) { $from=parsedate($from);}
+        if (defined $to) { $to=parsedate($to); }
+        $sql.= " and timestamp >= $from" if $from;
+        $sql.= " and timestamp <= $to" if $to;
+        $sql.=" union select timestamp,close from stocks_daily where symbol = '$symbol'";
+        $sql.= " and timestamp >= $from" if $from;
+        $sql.= " and timestamp <= $to" if $to;
+        $sql.= ") order by timestamp";
+
+        my @rows = ExecStockSQL("2D",$sql);
+        #foreach my $line(@rows)
+        #   print "@$line<br>";
+
+        open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
+
+        print GNUPLOT "set term png\n";           # we want it to produce a PNG
+        print GNUPLOT "set output\n";             # output the PNG to stdout
+        print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
+        foreach my $r (@rows) {
+            print GNUPLOT $r->[0], "\t", $r->[1], "\n";
+        }
+        print GNUPLOT "e\n"; # end of data
+        #
+        # Here gnuplot will print the image content
+        #
+        close(GNUPLOT);
+    }    
 }
 
 sub DailyAdd{
-    eval { ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,@_);};
-    return $@;
+    my $date = strftime("%Y%m%d00:00:00", localtime);
+    my ($symbol) = @_;
+    my %query=(symbols => [$symbol],
+        start_date => $date,
+        end_date => $date,
+    );
+    my $q = new Finance::QuoteHist::Yahoo(%query);
+    foreach my $row ($q->quotes()) {
+        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
+        my $timestamp = parsedate($qdate);
+        eval { ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$qsymbol,$timestamp,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
+    }
 }
 
 
@@ -795,10 +799,10 @@ sub getBalance{
 
 sub getLatestPrice{
     my ($symbol)=@_;
-    my @rows;
-    eval {@rows =  ExecSQL($dbuser,$dbpasswd,
-            "select cash from portfolio_accounts where id=?",undef,$symbol);};
-    return 10;
+    my $con=Finance::Quote->new();
+    $con->timeout(60);
+    my %quotes = $con->fetch("usa",$symbol);
+    return $quotes{$symbol,'close'};
 }
 
 
@@ -923,7 +927,7 @@ sub getVOL{
 sub ShowStocks{
     my @rows;
     eval {@rows =  ExecSQL($dbuser,$dbpasswd,
-            "select * from stocks",undef);};
+            "select * from stocks",undef,@_);};
     return @rows;
 }
 
