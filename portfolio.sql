@@ -65,5 +65,3 @@ INSERT INTO portfolio_users (name,password,email) VALUES ('root','rootroot','roo
 INSERT INTO portfolio_users (name,password,email) VALUES ('anon','anonanon','anon@anon.com');
 
 quit;
-
--- test

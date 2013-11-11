@@ -260,6 +260,7 @@ if($action eq "manage-portfolio"){
                 print "<p><a href=\"portfolio.pl?act=view&p_id=$str[$i][0]\">View Porfolio $str[$i][2]</a></p>";
             }
         }
+        print "<p><a href=\"portfolio.pl?act=base&run=1\">Return</a></p>";
     }
 }
 
@@ -268,12 +269,16 @@ if($action eq "view"){
         my $p_id = param('p_id');
         my (@holdings,$error) =  ShowStockHoldings($p_id);
 
+        print "<h3>Your cash account</h3>";
+        my $balance = getBalance($p_id);
+        print "<p>\$$balance</p>";
+
         my @holdInfo;
+        my $total_value = 0;
         my $out = "<h3>Your holdings' daily information</h3>
         <table border=\"1\">
         <tr>
         <th>SYMBOL</th>
-        <th>Share</th>
         <th>Date</th>
         <th>Time</th>
         <th>High</th>
@@ -281,15 +286,21 @@ if($action eq "view"){
         <th>Close</th>
         <th>Open</th>
         <th>Volume</th>
+        <th>Your Share</th>
+        <th>Your Value</th>
         </tr>
         ";	
         if($#holdings >=0){
             for(my $i=0;$i<$#holdings;$i++){
                 #give a table to show the daily info 
-                @holdInfo = getDailyInfo($holdings[$i][0]);
+                my $symbol = $holdings[$i][0];
+                @holdInfo = getDailyInfo($symbol);
+                my $latest_price = getLatestPrice($symbol);
+                my $value = $holdings[$i][1] * $latest_price;
+                $total_value += $value;
+
                 $out .= "<tr>
-                <td><a href=\"portfolio.pl?act=viewstock&p_id=$p_id&symbol=$holdings[$i][0]\">$holdings[$i][0]</a></td>
-                <td>$holdings[$i][1]</td> 
+                <td><a href=\"portfolio.pl?act=viewstock&p_id=$p_id&symbol=$symbol\">$symbol</a></td>
                 <td>$holdInfo[0]</td> 
                 <td>$holdInfo[1]</td>
                 <td>$holdInfo[2]</td>
@@ -297,11 +308,17 @@ if($action eq "view"){
                 <td>$holdInfo[4]</td>
                 <td>$holdInfo[5]</td>
                 <td>$holdInfo[6]</td>
+                <td>$holdings[$i][1]</td> 
+                <td>$value</td> 
                 </tr>";
             }
         }
         $out .="</table>";
         print $out;
+
+        print "<p>Total Value: \$$total_value</p>";
+
+        print "<h3>Actions</h3>";
         print "<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">View Statistics</a></p>";
         print "<p><a href=\"portfolio.pl?act=history&p_id=$p_id\">View History</a></p>";
         print "<p><a href=\"portfolio.pl?act=buy_stock&p_id=$p_id\">Buy Stock</a></p>";
@@ -525,6 +542,8 @@ if($action eq "manage-cash"){
             -values=>[keys %hash],
             -labels=>\%hash,
             -linebreak=>'true'),
+        p,
+        'Action:',
         p,
         radio_group(-name=>'act_group',
             -values=>['deposit','withdraw'],
@@ -782,6 +801,23 @@ sub getDailyInfo{
     return @data;
 }
 
+sub getBalance{
+    my ($p_id)=@_;
+    my @rows;
+    eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+            "select cash from portfolio_accounts where id=?",undef,$p_id);};
+    return $rows[0][0];
+}
+
+sub getLatestPrice{
+    my ($symbol)=@_;
+    my @rows;
+    eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+            "select cash from portfolio_accounts where id=?",undef,$symbol);};
+    return 10;
+}
+
+
 sub getCOV{
     my ($field1,$field2,$type,$cotype,$from,$to,$p_id,$holdings)=@_;
     my $out="";
@@ -938,7 +974,7 @@ sub ShowBalance{
             "select p_name,cash from portfolio_accounts where owner=?",undef,$user);};
     if($@){return (undef,$@);}
     else{
-        return (MakeTable("show balance","2D",["p_name","cash"],@rows),$@);
+        return (MakeTable("show balance","2D",["portfolio name","cash"],@rows),$@);
     }
 }
 
