@@ -1,10 +1,14 @@
 #!/usr/bin/perl -w
 
+use strict;
+use CGI qw(:standard);
+use DBI;
+use Time::ParseDate;
 BEGIN {
     $ENV{PORTF_DBMS}="oracle";
     $ENV{PORTF_DB}="cs339";
-    $ENV{PORTF_DBUSER}="qzw056";
-    $ENV{PORTF_DBPASS}="zM0rH5vkt";
+    $ENV{PORTF_DBUSER}="tzh240";
+    $ENV{PORTF_DBPASS}="zi9CFos2c";
 
     unless ($ENV{BEGIN_BLOCK}) {
         use Cwd;
@@ -19,11 +23,6 @@ BEGIN {
 
 use stock_data_access;
 
-
-use strict;
-use CGI qw(:standard);
-use DBI;
-use Time::ParseDate;
 
 use Finance::Quote;
 use FileHandle;
@@ -44,8 +43,8 @@ use Finance::QuoteHist::Yahoo;
 #
 # You need to override these for access to your database
 #
-my $dbuser="qzw056";
-my $dbpasswd="zM0rH5vkt";
+my $dbuser="tzh240";
+my $dbpasswd="zi9CFos2c";
 
 
 my $cookiename="PORTFOLIOSession";
@@ -432,7 +431,7 @@ if($action eq 'history'){
             hidden( -name => 'pid', default => [$p_id] ),
             hidden( -name => 'act', default => 'statistics' ),
             hidden(-name=>'run',default=>['1']),
-            submit(-name=>'vol', -value => 'View History'),
+            submit(-name=>'viewoption', -value => 'View Optional History'),p,
             end_form;
         }   
         my $p_id = url_param('p_id');
@@ -449,13 +448,11 @@ if($action eq 'history'){
         my @oldhist;
         my @newhist;
         my $options = join(',',@options);
-        print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
-        @oldhist =  getOldHist($symbol,$hold,$distype,$options,$from,$to);
-        @newhist = getNewHist($symbol,$hold,$distype,$options,$from,$to);
-
-        my @bighist = (@oldhist,@newhist);
-        foreach my $big(@bighist){print "@$big<br>";}
-        ShowHist(@bighist,$distype);	
+        
+	if(param('viewoption')){
+	print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
+        getHist($symbol,$hold,$distype,$options,$from,$to);
+	 }
     }
 }
 
@@ -679,46 +676,13 @@ sub SellStock{
     return $@;
 }
 
-sub ShowHist{
-    my(@rows,$type)=@_;
-
-    if ($type eq "text") { 
-        print "<pre>";
-        foreach my $r (@rows) {
-            print $r->[0], "\t", $r->[1], "\n";
-        }
-        print "</pre>";
-
-    } elsif ($type eq "plot") {
-        #
-# This is how to drive gnuplot to produce a plot
-# The basic idea is that we are going to send it commands and data
-# at stdin, and it will print the graph for us to stdout
-        #
-        #
-        open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
-
-        print GNUPLOT "set term png\n";           # we want it to produce a PNG
-        print GNUPLOT "set output\n";             # output the PNG to stdout
-        print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
-        foreach my $r (@rows) {
-            print GNUPLOT $r->[0], "\t", $r->[1], "\n";
-        }
-        print GNUPLOT "e\n"; # end of data
-
-        #
-        # Here gnuplot will print the image content
-        #
-
-        close(GNUPLOT);
-    }
-}
 
 
 ##new function :  maybe insert into stocks table##
-sub getNewHist{	
+sub getHist{	
     my ($symbol,$hold,$distype,$options,$from,$to) = @_;
 ### download from Yahoo!###
+    my @data=();
     my $nfrom='last year';
     my $nto = 'now';
     $nfrom = parsedate($nfrom);
@@ -730,8 +694,6 @@ sub getNewHist{
         end_date => $nto,
     );
     my $q = new Finance::QuoteHist::Yahoo(%query);
-    my $sql="";
-    my @data=();
     foreach my $row ($q->quotes()) {
         my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
         my @line;
@@ -746,16 +708,53 @@ sub getNewHist{
         ####insert new data into stocks_daily##
         my $err =DailyAdd(@line);
     }
-    ##### select data from stocks_daily##
-    $sql.="select $options from stocks_daily where symbol='$symbol'";
+    
+    if($options eq ''){$options = 'close';}
+    my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$symbol'" ;
     if (defined $from) { $from=parsedate($from);}
     if (defined $to) { $to=parsedate($to); }
-    $sql.= " and timestamp>=$from" if $from;
-    $sql.= " and timestamp<=$to" if $to;
-    $sql.= " order by timestamp";
-    # return an array
-    @data = ExecStockSQL("2D",$sql); 
-    return @data;
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.=" union select timestamp,$options from stocks_daily where symbol = '$symbol'";
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.= ") order by timestamp";
+    
+    @data = ExecStockSQL("2D",$sql);
+    ##### select data from stocks_daily##
+    if($distype eq "Table"){
+	print "$#data new records<br>";
+	foreach my $line(@data){print "@$line<br>";} 
+    }
+    if($distype eq "Plot"){
+    my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$symbol'" ;
+    if (defined $from) { $from=parsedate($from);}
+    if (defined $to) { $to=parsedate($to); }
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.=" union select timestamp,close from stocks_daily where symbol = '$symbol'";
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.= ") order by timestamp";
+    
+    my @rows = ExecStockSQL("2D",$sql);
+	#foreach my $line(@rows)
+	#   print "@$line<br>";
+    
+  open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
+  
+  print GNUPLOT "set term png\n";           # we want it to produce a PNG
+  print GNUPLOT "set output\n";             # output the PNG to stdout
+  print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
+  foreach my $r (@rows) {
+    print GNUPLOT $r->[0], "\t", $r->[1], "\n";
+  }
+  print GNUPLOT "e\n"; # end of data
+  #
+  # Here gnuplot will print the image content
+  #
+  close(GNUPLOT);
+	}    
 }
 
 sub DailyAdd{
@@ -763,21 +762,6 @@ sub DailyAdd{
     return $@;
 }
 
-sub getOldHist{
-    my ($symbol,$hold,$distype,$options,$from,$to) = @_;
-    my $sql="";
-    my @data;
-    print $options;
-    $sql.="select $options from cs339.stocksdaily where symbol='$symbol'";
-    if (defined $from) { $from=parsedate($from);}
-    if (defined $to) { $to=parsedate($to); }
-    $sql.= " and timestamp>=$from" if $from;
-    $sql.= " and timestamp<=$to" if $to;
-    $sql.= " order by timestamp";
-    # return an array
-    @data = ExecStockSQL("2D",$sql); 
-    return @data;
-}
 
 sub getDailyInfo{
     my ($stock) = @_;
