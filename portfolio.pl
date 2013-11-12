@@ -364,7 +364,7 @@ if($action eq "view_future"){
             hidden( -name => 'pid', default => [$p_id] ),
             hidden( -name => 'act', default => 'view_future' ),
             hidden(-name=>'run',default=>['1']),
-            submit(-name=>'future', -value => 'View Future',-onClick=>"CheckType()"),p,
+            submit(-name=>'future', -value => 'View Future'),p,
             end_form,
 	end_html;
         }   
@@ -393,17 +393,18 @@ if($action eq "view_future"){
 		elsif ( $t eq "One year from now" ) {
 			$to = $from + 31540000;
 		}
+	}
 		if ( $from && $to ) {
 		 	print "$from $to $t $hold";
 			my $result = stockFutureValue( $hold, $from, $to );
 			print $result;
 		}
-	}
+
 	print "<h3>See what?</h3>";
         print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return Porfolio View</a></p>";
     }
     my $p_id= url_param('p_id');
-    print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">Return</a></p>";
+    print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return</a></p>";
 }
 
 if($action eq "viewstock"){
@@ -551,7 +552,6 @@ if($action eq 'history'){
 
         if(param('viewoption')){
             if ($distype ne "Plot") {
-                print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
             }
             getHist($symbol,$hold,$distype,$options,$from,$to,$t);
         }
@@ -1054,7 +1054,7 @@ sub getHist{
         push(@line,$qvolume);
         ####insert new data into stocks_daily##
         my $err =DailyAdd(@line);
-    print @line,"<br>";
+    #print @line,"<br>";
    }
     my @data=();
     if($options eq ''){$options = 'close';}
@@ -1092,6 +1092,9 @@ sub getHist{
     @data = ExecStockSQL("2D",$sql);
     ##### select data from stocks_daily##
     if($distype eq "Table"){
+	$from = ParseDateString("epoch $from");
+	$to = ParseDateString("epoch $to");
+        print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
         print "$#data new records<br>";
         foreach my $line(@data){print "@$line<br>";} 
     }
