@@ -50,7 +50,13 @@ my $dbpasswd="zM0rH5vkt";
 
 my $cookiename="PORTFOLIOSession";
 
-my $debug=0;
+my $debug;
+if (defined(param("debug"))) {
+    $debug=param("debug");
+
+} else {
+    $debug=0;
+}
 my @sqlinput=();
 my @sqloutput=();
 
@@ -204,6 +210,29 @@ if (!defined(param("distype")) or param("distype") ne 'Plot') {
     print header(-type => 'image/png', -expires => 'now' , -cookie=>\@outputcookies);
 }
 
+#
+# Generate debugging output if anything is enabled.
+#
+#
+if ($debug) {
+    print hr, p, hr,p, h2('Debugging Output');
+    print h3('Parameters');
+    print "<menu>";
+    print map { "<li>$_ => ".escapeHTML(param($_)) } param();
+    print "</menu>";
+    print h3('Cookies');
+    print "<menu>";
+    print map { "<li>$_ => ".escapeHTML(cookie($_))} cookie();
+    print "</menu>";
+    my $max= $#sqlinput>$#sqloutput ? $#sqlinput : $#sqloutput;
+    print h3('SQL');
+    print "<menu>";
+    for (my $i=0;$i<=$max;$i++) {
+        print "<li><b>Input:</b> ".escapeHTML($sqlinput[$i]);
+        print "<li><b>Output:</b> $sqloutput[$i]";
+    }
+    print "</menu>";
+}
 
 if($action eq "base"){
     print "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\" type=\"text/javascript\"></script>";
@@ -903,9 +932,9 @@ sub stockFutureValue{
 	my $days_ahead = int( ( $to - $from ) / 86400.0 );
 	print "<p>Total days: ", $days_ahead;
 	system
-	  "/Home/tzh240/www/portfolio/get_data.pl --close --from=$from --to=$to $symbol > _plot.in";
+	  "~/www/portfolio/get_data.pl --close --from=$from --to=$to $symbol > _plot.in";
 	system
-	  "/Home/tzh240/www/portfolio/time_series_project _plot.in $days_ahead AR 16 1>predictor.out";
+	  "~/www/portfolio/time_series_project _plot.in $days_ahead AR 16 1>predictor.out";
 	system "tail -n $days_ahead predictor.out > predictor.plot";
 
 	my $num_years  = ( $to - $from ) / 31556926.0;
