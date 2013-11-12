@@ -29,7 +29,9 @@ use FileHandle;
 use Time::CTime;
 use Date::Manip;
 use Finance::QuoteHist::Yahoo;
-
+use Time::Local;
+use POSIX 'strftime';
+use Getopt::Long;
 
 # The session cookie will contain the user's name and password so that
 # he doesn't have to type it again and again.
@@ -340,18 +342,11 @@ if($action eq "view_future"){
             for(my $j=0;$j < $#holdings;$j++){
                 push(@stockHolds,$holdings[$j][0]);
             }
-            print start_html(-title=>'FUTURE',-script=>{-type=>'JAVASCRIPT',
-			-code=>'
-			    function CheckType(){
-			    var num = document.getElementById("fu");	
-			    }
-				
-				'}
-		),
+            print start_html(-title=>'FUTURE'),
 	     start_form(-name=>'ViewFuture'),
             "Choose a holding: ",radio_group(-name=>'hold',
                 -values=>\@stockHolds),p,
-	    "Steps (Must be number! Steps will override dropbox): ",textfield(-name=>'futext',-id=>'fu'),p,
+	    "Future Date (MM/DD/YY, Will override dropbox): ",textfield(-name=>'fudate',-id=>'fu'),p,
             #"SYMBOL",textfield(-name=>'symbol'),p,
 	    "or choose one time Range:",popup_menu(
 		-name   => 't',
@@ -376,8 +371,39 @@ if($action eq "view_future"){
     	
     }
     else{
+	my $hold = param('hold');
+       	my $p_id = param('pid');
+	my $t      = param("t");
+	my $from   = time;
+	my $to     = param('fudate');
+	$to = parsedate($to);
+	if ($t) {
+		if ( $t eq "Tomorrow" ) {
+			$to = $from + 86400;
+		}
+		elsif ( $t eq "One week from now" ) {
+			$to = $from + 604800;
+		}
+		elsif ( $t eq "One month from now" ) {
+			$to = $from + 2628000;
+		}
+		elsif ( $t eq "One quarter from now" ) {
+			$to = $from + 7884000;
+		}
+		elsif ( $t eq "One year from now" ) {
+			$to = $from + 31540000;
+		}
+		if ( $from && $to ) {
+		 	print "$from $to $t $hold";
+			my $result = stockFutureValue( $hold, $from, $to );
+			print $result;
+		}
+	}
 	print "<h3>See what?</h3>";
+        print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return Porfolio View</a></p>";
     }
+    my $p_id= url_param('p_id');
+    print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">Return</a></p>";
 }
 
 if($action eq "viewstock"){
@@ -466,8 +492,6 @@ if($action eq "sell_stock"){
     print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return Porfolio View</a></p>";
 }
 
-
-##### temp #####
 if($action eq 'history'){
     if(!$run){	
         if(url_param('p_id')){
@@ -874,6 +898,132 @@ sub getBeta{
     $out .= "</tr>";
     $out.="</tabel>";
     return $out;
+}
+
+######new function:predict #####
+sub stockFutureValue{
+	my ( $symbol, $from, $to ) = @_;
+	my $days_ahead = int( ( $to - $from ) / 86400.0 );
+	print "<p>Total days: ", $days_ahead;
+	system
+	  "/Home/tzh240/www/portfolio/get_data.pl --close --from=$from --to=$to $symbol > _plot.in";
+	system
+	  "/Home/tzh240/www/portfolio/time_series_project _plot.in $days_ahead AR 16 1>predictor.out";
+	system "tail -n $days_ahead predictor.out > predictor.plot";
+
+	my $num_years  = ( $to - $from ) / 31556926.0;
+	my $num_months = ( $to - $from ) / 2629743.0;
+	my $num_days   = ( $to - $from ) / 86400.0;
+
+	my @xlabel;
+
+	if ( $num_months > 24 ) {
+		@xlabel = PlotwithYear( $from, $to );
+	}
+	elsif ( $num_days > 60 ) {
+		@xlabel = PlotwithMonth( $from, $to );
+	}
+	else {
+		@xlabel = PlotwithDay( $from, $to );
+	}
+
+	my $xtics = "(" . join( ", ", @xlabel ) . ")";
+	$from = localtime($from);
+	$to   = localtime($to);
+	print "<p>From: $from\n";
+	print "To: $to\n";
+	my $outfile =
+	  GnuPlotFuture( "$symbol", "predictor.plot", "image.png", "$from", "$to",
+		"$xtics" );
+	print "<img src=\"" . $outfile . "\">";    
+}
+
+##newest func
+sub GnuPlotFuture{
+   my ($symbol, $datafile, $outputfile,$from,$to,$xtics)=@_;
+   my $format = "%Y";		 
+   open(GNUPLOT,"|gnuplot");
+   print GNUPLOT "set terminal png\n";
+   print GNUPLOT "set output \"$outputfile\"\n";
+   print GNUPLOT "set xtics $xtics \n";
+   print GNUPLOT "set size 2.0, 1.0\n";
+   print GNUPLOT "set style fill empty\n";
+   print GNUPLOT "set title '$symbol'\nset xlabel 'Time' 0.0,-1.0\nset ylabel 'Price'\n";
+   print GNUPLOT "plot \"$datafile\" using 3 with linespoints\n";
+   close(GNUPLOT);
+   return $outputfile;
+}
+
+sub PlotwithYear {
+    my ($from, $to) = @_;
+    my @xlabel;
+    my $fromyear = 1900 + (localtime($from))[5];
+    my $toyear = 1900 + (localtime($to))[5];
+	if ($from > timelocal(0,0,0,1,0,$fromyear)) {
+		$fromyear+=1;
+	}
+    foreach ($fromyear..$toyear) {
+        push @xlabel, "\"$_\" " . timelocal(0,0,0,1,0,$_);
+    }
+    return @xlabel;
+}
+
+sub PlotwithMonth {
+    my ($from, $to) = @_;
+    my @xlabel;
+    my ($fromday, $frommonth, $fromyear) = (localtime($from))[3,4,5];
+    $fromyear += 1900;
+    if ($fromday > 1) {
+        $frommonth = ($frommonth+1)%12;
+        if ($frommonth == 0) {
+            $fromyear += 1;
+        }
+    }
+    my ($tomonth,$toyear) = (localtime($to))[4,5];
+    $toyear += 1900;
+    my $to_timestamp = timelocal(0,0,0,1,$tomonth,$toyear);
+    my $from_timestamp = timelocal(0,0,0,1,$frommonth,$fromyear);
+    my @mons = qw( Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec );
+    do {
+        my $xtic = "$mons[$frommonth]";
+        $xtic .= "\\n$fromyear";
+        push @xlabel, "\"$xtic\" " . $from_timestamp;
+        $frommonth = ($frommonth+1)%12;
+        if ($frommonth == 0) {
+            $fromyear += 1;
+        }
+        $from_timestamp = timelocal(0,0,0,1,$frommonth,$fromyear);
+    } while ($from_timestamp <= $to_timestamp);
+
+    return @xlabel;
+}
+
+sub PlotwithDay {
+    my ($from, $to) = @_;
+    my @xlabel;
+    
+    my @mons = qw(NOF Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
+    my ($fromday, $frommonth, $fromyear) = (localtime($from))[3,4,5];
+    $fromyear += 1900;
+    my $from_timestamp = timelocal(0,0,0,$fromday,$frommonth,$fromyear);
+
+    my ($today, $tomonth,$toyear) = (localtime($to))[3,4,5];
+    $toyear += 1900;
+    my $to_timestamp = timelocal(0,0,0,$today,$tomonth,$toyear);
+    my ($previous_month, $previous_year) = (0,0);
+    do {
+        my ($day, $month,$year) = (localtime($from_timestamp))[3,4,5];
+        $month += 1;
+        $year += 1900;
+        my $xtic = "$day";
+        if ($month != $previous_month) {
+            $xtic .= "\\n$mons[$month] $year";
+        }
+        push @xlabel, "\"$xtic\" " . $from_timestamp;
+        ($previous_month, $previous_year) = ($month, $year);
+        $from_timestamp += 86400;
+    } while ($from_timestamp <= $to_timestamp);
+    return @xlabel;
 }
 
 ##new function :  maybe insert into stocks table##
