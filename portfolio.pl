@@ -325,19 +325,64 @@ if($action eq "view"){
         print "<p><a href=\"portfolio.pl?act=history&p_id=$p_id\">View History</a></p>";
         print "<p><a href=\"portfolio.pl?act=buy_stock&p_id=$p_id\">Buy Stock</a></p>";
         print "<p><a href=\"portfolio.pl?act=sell_stock&p_id=$p_id\">Sell Stock</a></p>";
+     	print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">View Future</a></p>";
         print "<p><a href=\"portfolio.pl?act=manage-portfolio\">Return</a></p><br>";
+    }
+}
+
+if($action eq "view_future"){
+    if(!$run){
+        if(url_param('p_id')){
+            print "<h3>Let's see!</h3>";
+	    my $p_id = url_param('p_id');
+            my @stockHolds=();
+            my (@holdings,$error) = ShowStockHoldings($p_id);
+            for(my $j=0;$j < $#holdings;$j++){
+                push(@stockHolds,$holdings[$j][0]);
+            }
+            print start_html(-title=>'FUTURE',-script=>{-type=>'JAVASCRIPT',
+			-code=>'
+			    function CheckType(){
+			    var num = document.getElementById("fu");	
+			    }
+				
+				'}
+		),
+	     start_form(-name=>'ViewFuture'),
+            "Choose a holding: ",radio_group(-name=>'hold',
+                -values=>\@stockHolds),p,
+	    "Steps (Must be number! Steps will override dropbox): ",textfield(-name=>'futext',-id=>'fu'),p,
+            #"SYMBOL",textfield(-name=>'symbol'),p,
+	    "or choose one time Range:",popup_menu(
+		-name   => 't',
+		-values => [
+			'',
+			'Tomorrow',
+			'One week from now',
+			'One month from now',
+			'One quarter to now',
+			'One year from now'
+		]
+	  ),p,
+            "Plot or Table:",radio_group(-name=>'distype',
+                -values=>['Table','Plot']),p, 
+            hidden( -name => 'pid', default => [$p_id] ),
+            hidden( -name => 'act', default => 'view_future' ),
+            hidden(-name=>'run',default=>['1']),
+            submit(-name=>'future', -value => 'View Future',-onClick=>"CheckType()"),p,
+            end_form,
+	end_html;
+        }   
+    	
+    }
+    else{
+	print "<h3>See what?</h3>";
     }
 }
 
 if($action eq "viewstock"){
     if(!$run){
-       if(url_param('p_id') && param('symbol')){
-         print header,             
-         start_html('hello world'),
-         h1('hello world'),
-	 
-         end_html;         
-         }
+   	print "nothing here";
     }   
     else{
 	print "hello";
@@ -732,12 +777,16 @@ sub SellStock{
 }
 
 sub downloadIXIC{
-    my $nfrom='last year';
-    my $nto = 'now';
+    my ($nfrom,$nto) = @_;
+   # my $nfrom='last year';
+   # my $nto = 'now';
+    if($nfrom eq ''){$nfrom='last year';}
+    if($nto eq ''){$nto='now';}
     $nfrom = parsedate($nfrom);
     $nfrom = ParseDateString("epoch $nfrom");
     $nto = parsedate($nto);
     $nto = ParseDateString("epoch $nto");
+    print "last year $nfrom now $nto";
     my %query=(symbols => ['^IXIC'],
         start_date => $nfrom,
         end_date => $nto,
@@ -755,7 +804,8 @@ sub downloadIXIC{
         push(@line,$qclose);
         push(@line,$qvolume);
         ####insert new data into stocks_daily##
-        my $err =DailyAdd(@line);
+        my $err=DailyAddnew(@line);
+     	
     print @line,"<br>";
    }
 }
@@ -763,7 +813,8 @@ sub downloadIXIC{
 
 ######## using ^IXIC latest one year data to calculate #######
 sub getBeta{
-    my ($holdings,$from,$to) = @_;   
+    my ($holdings,$from,$to) = @_;
+    #downloadIXIC($from,$to);   
     my $out="<h3>Beta of $holdings</h3>";
     my @stockHolds=split(',',$holdings);
     my $s1;
@@ -779,7 +830,7 @@ sub getBeta{
 
 #first, get means and vars for the individual columns that match
 
-            $sql = "select count(*),avg(l.close),stddev(l.close),avg(r.close),stddev(r.close) from Stocks_Daily l join Stocks_Daily r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+            $sql = "select count(*),avg(l.close),stddev(l.close),avg(r.close),stddev(r.close) from Stocks_view1 l join Stocks_view1 r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
             $sql.= " and l.timestamp>=$from" if $from;
             $sql.= " and l.timestamp<=$to" if $to;
 
@@ -793,7 +844,7 @@ sub getBeta{
 
                 #otherwise get the covariance
 
-                $sql = "select avg((l.close - $mean_f1)*(r.close - $mean_f2)) from Stocks_Daily l join Stocks_Daily r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+                $sql = "select avg((l.close - $mean_f1)*(r.close - $mean_f2)) from Stocks_view1 l join Stocks_view1 r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
                 $sql.= " and l.timestamp>= $from" if $from;
                 $sql.= " and l.timestamp<= $to" if $to;
 
@@ -817,7 +868,7 @@ sub getBeta{
 
     for (my $i=0;$i<=$#stockHolds;$i++) {
         $s1=$stockHolds[$i];
-            $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.12f',$corrcoeff{$s1});
+            $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.8f',$corrcoeff{$s1});
             $out .= "<td>$corrcoeff{$s1}</td>";
     }
     $out .= "</tr>";
@@ -829,6 +880,32 @@ sub getBeta{
 sub getHist{	
     my ($symbol,$hold,$distype,$options,$from,$to,$t) = @_;
 ### download from Yahoo!###
+    my $nfrom='last year';
+    my $nto = 'now';
+    $nfrom = parsedate($nfrom);
+    $nfrom = ParseDateString("epoch $nfrom");
+    $nto = parsedate($nto);
+    $nto = ParseDateString("epoch $nto");
+    my %query=(symbols => [$hold],
+        start_date => $nfrom,
+        end_date => $nto,
+    );
+    my $q = new Finance::QuoteHist::Yahoo(%query);
+    foreach my $row ($q->quotes()) {
+        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
+        my @line;
+        my $newd = parsedate($qdate);
+        push(@line,$qsymbol);
+        push(@line,$newd);
+        push(@line,$qopen);
+        push(@line,$qhigh);
+        push(@line,$qlow);
+        push(@line,$qclose);
+        push(@line,$qvolume);
+        ####insert new data into stocks_daily##
+        my $err =DailyAdd(@line);
+    print @line,"<br>";
+   }
     my @data=();
     if($options eq ''){$options = 'close';}
     my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
@@ -914,6 +991,12 @@ sub DailyAdd{
     }
 }
 
+sub DailyAddnew{
+        my @row;
+	my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @_;
+        eval {@row= ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$qsymbol,$qdate,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
+	return @row;
+}
 
 sub getDailyInfo{
     my ($stock) = @_;
