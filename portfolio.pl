@@ -682,16 +682,13 @@ if($action eq "manage-cash"){
 
 if($action eq "update-daily-stocks"){
 
-    print "dfd";
-    my @stocks = showStocks();
-    print $#stocks;
+    my (@stocks,$error) =  ShowStocks();
     if ($#stocks >= 0) {
         for(my $i=0; $i <= $#stocks; $i++){
-            print "$stocks[$i][0]";
-            #DailyAdd('AMD');
+            DailyAdd($stocks[$i][0]);
         }
     }
-
+    print "OK";
 }
 
 if($action eq "login"){
@@ -1130,18 +1127,19 @@ sub getHist{
 }
 
 sub DailyAdd{
-    my $date = strftime("%Y%m%d00:00:00", localtime);
     my ($symbol) = @_;
-    my %query=(symbols => [$symbol],
-        start_date => $date,
-        end_date => $date,
-    );
-    my $q = new Finance::QuoteHist::Yahoo(%query);
-    foreach my $row ($q->quotes()) {
-        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
-        my $timestamp = parsedate($qdate);
-        eval { ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$qsymbol,$timestamp,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
-    }
+    my $con=Finance::Quote->new();
+
+    my %quotes = $con->fetch("usa",$symbol);
+    my $qdate = $quotes{$symbol,'date'};
+    my $qopen = $quotes{$symbol,'open'};
+    my $qhigh = $quotes{$symbol,'high'};
+    my $qlow = $quotes{$symbol,'low'};
+    my $qclose = $quotes{$symbol,'close'};
+    my $qvolume = $quotes{$symbol,'volume'};
+    my $timestamp = parsedate($qdate);
+
+    eval { ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$symbol,$timestamp,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
 }
 
 sub DailyAddnew{
@@ -1186,7 +1184,7 @@ sub getLatestPrice{
     my $con=Finance::Quote->new();
     $con->timeout(60);
     my %quotes = $con->fetch("usa",$symbol);
-    return $quotes{$symbol,'close'};
+    return $quotes{$symbol,'price'};
 }
 
 
