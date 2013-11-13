@@ -1199,9 +1199,10 @@ sub getHist{
     my @data=();
     if($options eq ''){$options = 'close';}
     my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
-    if (defined $from) { $from=parsedate($from);}
-    if (defined $to) { $to=parsedate($to); }
-	if ($t) {
+    if ($from ne "") { $from=parsedate($from);}
+    if ($to ne "") { $to=parsedate($to); }
+	print "the three times: $from $to $t";
+	if ($t ne "") {
 		$to = time;
 		if ( $t eq "Yesterday" ) {
 		   $from = $to - 86400;
