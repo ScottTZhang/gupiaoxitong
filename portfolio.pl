@@ -30,7 +30,7 @@ use Time::CTime;
 use Date::Manip;
 use Finance::QuoteHist::Yahoo;
 use Time::Local;
-use POSIX 'strftime';
+#use POSIX 'strftime';
 use Getopt::Long;
 
 # The session cookie will contain the user's name and password so that
@@ -245,8 +245,80 @@ if($action eq "base"){
         print "<p><a href=\"portfolio.pl?act=create-portfolio\">Create Portfolio</a></p>";
         print "<p><a href=\"portfolio.pl?act=manage-portfolio\">Manage Portfolio</a></p>";
         print "<p><a href=\"portfolio.pl?act=manage-cash\">Manage Cash</a></p>";
+        print "<p><a href=\"portfolio.pl?act=query\">Query Sctock</a></p>";
         print "<p><a href=\"portfolio.pl?act=logout\">Logout</a></p>";
     }
+}
+
+if($action eq "query"){
+	if(!$run){
+        print start_form(-name=>'Query Stocks'),
+        h2('Input a symbol name'),
+        "Symbol:",textfield(-name=>'symbol'),p,
+        hidden(-name=>'run',default=>['1']),
+        hidden(-name=>'act',-default=>['query']),
+        submit,
+        end_form;
+        hr;
+	}
+	else {
+ 	    my $symbol = param('symbol');
+	    $symbol = uc($symbol);
+	    print $symbol;
+	    my @result = getDailyInfo($symbol);
+	    print join(" ",@result);
+	    print "<table border=\"1\"><tr>
+		   <th>date</th>
+		   <th>time</th>
+		   <th>high</th>
+		   <th>low</th>
+		   <th>close</th>
+		   <th>open</th>
+		   <th>volume</th></tr><tr>";
+	   foreach(@result) {print "<td>$_</td>";}
+	   print "</tr></table>";
+
+            print start_form(-name=>'ViewHistory'),
+            #"SYMBOL",textfield(-name=>'symbol'),p,
+            h3('History'),
+            "Choose options: ",checkbox_group(-name=>'options',
+                -values=>['open','low','high','close','volume']),p, 
+            "From", textfield( -name => 'from' ),
+            "MM/DD/YEAR",p,
+            "To", textfield( -name => 'to' ),
+            "MM/DD/YEAR", p,
+	    "Time Range:",popup_menu(
+		-name   => 't',
+		-values => [
+			'',
+			'Yesterday',
+			'Last week to now',
+			'Last month to now',
+			'Last quarter to now',
+			'Last year to now',
+			'Last five years to now'
+		]
+	  ),p,
+            "Plot or Table:",radio_group(-name=>'distype',
+                -values=>['Table','Plot']),p, 
+            hidden( -name => 'act', default => 'query' ),
+            hidden(-name=>'symbol',default=>$symbol),
+            hidden(-name=>'run',default=>['1']),
+            submit(-name=>'viewoption', -value => 'View Optional History'),p,
+            end_form;
+		if(param('viewoption')){
+			my $sym=param('symbol');
+			my $from=param('from');
+			my $to = param('to');
+			my $t = param('t');
+			my $distype=param('distype');
+			my @options = param('options');
+			my $options = join(',',@options);
+			print "$sym";
+            		getHist($sym,$distype,$options,$from,$to,$t);
+		}
+	}
+	print "<p><a href=\"portfolio.pl?act=base\">Return</a></p>";
 }
 
 if($action eq "create-portfolio"){
@@ -572,7 +644,7 @@ if($action eq 'history'){
             "Plot or Table:",radio_group(-name=>'distype',
                 -values=>['Table','Plot']),p, 
             hidden( -name => 'pid', default => [$p_id] ),
-            hidden( -name => 'act', default => 'statistics' ),
+            hidden( -name => 'act', default => 'history' ),
             hidden(-name=>'run',default=>['1']),
             submit(-name=>'viewoption', -value => 'View Optional History'),p,
             end_form;
@@ -581,7 +653,6 @@ if($action eq 'history'){
         print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return</a></p>";
     }
     else {
-        my $symbol = param('symbol');
         my $from=param('from');
         my $to = param('to');
 	my $t = param('t');
@@ -592,11 +663,8 @@ if($action eq 'history'){
         my @oldhist;
         my @newhist;
         my $options = join(',',@options);
-
         if(param('viewoption')){
-            if ($distype ne "Plot") {
-            }
-            getHist($symbol,$hold,$distype,$options,$from,$to,$t);
+            getHist($hold,$distype,$options,$from,$to,$t);
         }
     }
 }
@@ -1099,8 +1167,8 @@ sub PlotwithDay {
 }
 
 ##new function :  maybe insert into stocks table##
-sub getHist{	
-    my ($symbol,$hold,$distype,$options,$from,$to,$t) = @_;
+sub getHist{
+    my ($hold,$distype,$options,$from,$to,$t) = @_;
 ### download from Yahoo!###
     my $nfrom='last year';
     my $nto = 'now';
@@ -1166,17 +1234,17 @@ sub getHist{
     if($distype eq "Table"){
 	$from = ParseDateString("epoch $from");
 	$to = ParseDateString("epoch $to");
-        print "<h2>History of $symbol from $from to $to dispaying in $distype</h2>";
+        print "<h2>History of $hold from $from to $to dispaying in $distype</h2>";
         print "$#data new records<br>";
         foreach my $line(@data){print "@$line<br>";} 
     }
     if($distype eq "Plot"){
-        my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$symbol'" ;
+        my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$hold'" ;
         if (defined $from) { $from=parsedate($from);}
         if (defined $to) { $to=parsedate($to); }
         $sql.= " and timestamp >= $from" if $from;
         $sql.= " and timestamp <= $to" if $to;
-        $sql.=" union select timestamp,close from stocks_daily where symbol = '$symbol'";
+        $sql.=" union select timestamp,close from stocks_daily where symbol = '$hold'";
         $sql.= " and timestamp >= $from" if $from;
         $sql.= " and timestamp <= $to" if $to;
         $sql.= ") order by timestamp";
