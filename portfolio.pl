@@ -328,6 +328,7 @@ if($action eq "view"){
                 #give a table to show the daily info 
                 my $symbol = $holdings[$i][0];
                 @holdInfo = getDailyInfo($symbol);
+		### get xianzhi
                 my $latest_price = $holdings[$i][1] * getLatestPrice($symbol);
                 my $value = $latest_price;
                 $total_value += $value;
@@ -348,8 +349,9 @@ if($action eq "view"){
         }
         $out .="</table>";
         print $out;
-
-        print "<p>Total Value: \$$total_value</p>";
+	my $trans_value = sellTotal($p_id) - buyTotal($p_id);
+	my $net = $total_value + $trans_value;
+        print "<p>  Total Current Value \$$total_value</p><p>+ Transaction Value \$$trans_value</p><p> = Net Income \$$net </p>";
 
         print "<h3>Actions</h3>";
         print "<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">View Statistics</a></p>";
@@ -926,6 +928,24 @@ sub getBeta{
     return $out;
 }
 
+#####newest function
+sub sellTotal{
+	my ($p_id)=@_;
+    	my @rows;
+    	eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+            "select sum(share_amount * strike_price ) from stock_transactions where portfolio_id = ? and transaction_type =2",undef,$p_id);};
+    	return $rows[0][0];
+}
+
+#####newest function
+sub buyTotal{
+	my ($p_id)=@_;
+    	my @rows;
+    	eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+            "select sum(share_amount * strike_price ) from stock_transactions where portfolio_id = ? and transaction_type =1",undef,$p_id);};
+    	return $rows[0][0];
+}
+
 ######new function:predict #####
 sub stockFutureValue{
 	my ( $symbol, $from, $to ) = @_;
@@ -964,7 +984,7 @@ sub stockFutureValue{
 	print "<img src=\"" . $outfile . "\">";    
 }
 
-##newest func
+##new func
 sub GnuPlotFuture{
    my ($symbol, $datafile, $outputfile,$from,$to,$xtics)=@_;
    my $format = "%Y";		 
