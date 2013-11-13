@@ -290,7 +290,7 @@ if($action eq "manage-portfolio"){
         #print $#str;
         if ($#str >= 0) {
             for(my $i=0; $i <= $#str; $i++){
-                print "<p><a href=\"portfolio.pl?act=view&p_id=$str[$i][0]\">View Porfolio $str[$i][2]</a></p>";
+                print "<p><a href=\"portfolio.pl?act=view&p_id=$str[$i][0]\">View Porfolio <b>$str[$i][2]</b></a></p>";
             }
         }
         print "<p><a href=\"portfolio.pl?act=base&run=1\">Return</a></p>";
