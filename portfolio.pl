@@ -945,12 +945,12 @@ sub getHoldTrans{
     my($p_id,$symbol) =@_;
     my @rows;
     eval { 
-        @rows = ExecSQL($dbuser, $dbpasswd, "select * from stock_transactions where portfolio_id =$p_id and symbol='$symbol'",undef);
+        @rows = ExecSQL($dbuser, $dbpasswd, "select symbol,share_amount,strike_price,share_amount*strike_price,transaction_type,transaction_time from stock_transactions where portfolio_id =$p_id and symbol='$symbol'",undef);
   };
     if ($@) { 
 	return (undef,$@);
     }else {
-    	return (MakeTable("Transaction History","2D",["Trans_id","p_id","symbol","share_amount","buy1/sell2","strike_price","time"],@rows),$@);
+    	return (MakeTable("Transaction History","2D",["symbol","share_amount","strike","trans_amount","buy1/sell2","time"],@rows),$@);
     }
 }
 
