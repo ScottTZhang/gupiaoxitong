@@ -334,7 +334,7 @@ if($action eq "view"){
                 $total_value += $value;
 
                 $out .= "<tr>
-                <td><a href=\"portfolio.pl?act=viewstock&p_id=$p_id&symbol=$symbol\">$symbol</a></td>
+                <td><a href=\"portfolio.pl?act=hold_trans&p_id=$p_id&symbol=$symbol\">$symbol</a></td>
                 <td>$holdInfo[0]</td> 
                 <td>$holdInfo[1]</td>
                 <td>$holdInfo[2]</td>
@@ -438,13 +438,25 @@ if($action eq "view_future"){
     print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return</a></p>";
 }
 
-if($action eq "viewstock"){
+if($action eq "hold_trans"){
+    my $p_id = url_param('p_id');
+    my $symbol = url_param('symbol');
     if(!$run){
-   	print "nothing here";
+	if($p_id){
+   	print "<h3>Transaction history of $symbol in $p_id.</h3>";
+	my($str,$err) = getHoldTrans($p_id,$symbol);
+	if(!$err){
+	    print $str;
+	    }
+	else{
+	    print $err;
+	}
+    }
     }   
     else{
 	print "hello";
     }
+    print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">return</a></p>";
 }
 
 if($action eq "buy_stock"){
@@ -926,6 +938,20 @@ sub getBeta{
     $out .= "</tr>";
     $out.="</tabel>";
     return $out;
+}
+
+##### newest 
+sub getHoldTrans{
+    my($p_id,$symbol) =@_;
+    my @rows;
+    eval { 
+        @rows = ExecSQL($dbuser, $dbpasswd, "select * from stock_transactions where portfolio_id =$p_id and symbol='$symbol'",undef);
+  };
+    if ($@) { 
+	return (undef,$@);
+    }else {
+    	return (MakeTable("Transaction History","2D",["Trans_id","p_id","symbol","share_amount","buy1/sell2","strike_price","time"],@rows),$@);
+    }
 }
 
 #####newest function
