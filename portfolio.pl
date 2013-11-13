@@ -324,7 +324,7 @@ if($action eq "view"){
         </tr>
         ";	
         if($#holdings >=0){
-            for(my $i=0;$i<$#holdings;$i++){
+            for(my $i=0;$i<=$#holdings;$i++){
                 #give a table to show the daily info 
                 my $symbol = $holdings[$i][0];
                 @holdInfo = getDailyInfo($symbol);
@@ -788,7 +788,7 @@ sub BuyStock{
         (id,portfolio_id,symbol,share_amount,transaction_type,strike_price,transaction_time) 
         values(stock_transactions_id.nextval,$p_id,'$symbol',$amount,1,$price,current_timestamp)",
 
-        "merge into stock_holdings using dual on (symbol='$symbol')
+        "merge into stock_holdings using dual on (symbol='$symbol' and portfolio_id=$p_id)
         when matched then update set share_amount=share_amount+$amount
         when not matched then insert (portfolio_id,symbol,share_amount) 
         values ($p_id,'$symbol',$amount)",
