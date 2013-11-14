@@ -1225,7 +1225,7 @@ sub getHist{
 	}
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
-    $sql.=" union select timestamp,$options from stocks_daily where symbol = '$hold'";
+    $sql.=" union all select timestamp,$options from stocks_daily where symbol = '$hold'";
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
@@ -1236,7 +1236,8 @@ sub getHist{
 	$from = ParseDateString("epoch $from");
 	$to = ParseDateString("epoch $to");
         print "<h2>History of $hold from $from to $to dispaying in $distype</h2>";
-        print "$#data new records<br>";
+        my $count = $#data + 1;
+        print "$count new records<br>";
         foreach my $line(@data){print "@$line<br>";} 
     }
     if($distype eq "Plot"){
@@ -1245,7 +1246,7 @@ sub getHist{
         if (defined $to) { $to=parsedate($to); }
         $sql.= " and timestamp >= $from" if $from;
         $sql.= " and timestamp <= $to" if $to;
-        $sql.=" union select timestamp,close from stocks_daily where symbol = '$hold'";
+        $sql.=" union all select timestamp,close from stocks_daily where symbol = '$hold'";
         $sql.= " and timestamp >= $from" if $from;
         $sql.= " and timestamp <= $to" if $to;
         $sql.= ") order by timestamp";
@@ -1440,7 +1441,7 @@ sub getVOL{
         my $sql="select count(*),avg($type),stddev($type) from (select timestamp,$type from CS339.StocksDaily where symbol ='$hold'";
         $sql.=" and timestamp >=$from" if $from;	
         $sql.=" and timestamp <=$to" if $to;
-	$sql .= " union select timestamp,$type from stocks_daily where symbol='$hold'";
+	$sql .= " union all select timestamp,$type from stocks_daily where symbol='$hold'";
         $sql.=" and timestamp >=$from" if $from;	
         $sql.=" and timestamp <=$to" if $to;
 	$sql .= ")";
