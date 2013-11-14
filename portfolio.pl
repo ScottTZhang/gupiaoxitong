@@ -283,7 +283,7 @@ if($action eq "query"){
             #"SYMBOL",textfield(-name=>'symbol'),p,
             h3('History'),
             "Choose options: ",checkbox_group(-name=>'options',
-                -values=>['open','low','high','close','volume']),p, 
+                -values=>['open','low','high','close','volume']),p,
             "From", textfield( -name => 'from' ),
             "MM/DD/YEAR",p,
             "To", textfield( -name => 'to' ),
@@ -301,7 +301,7 @@ if($action eq "query"){
                 ]
             ),p,
             "Plot or Table:",radio_group(-name=>'distype',
-                -values=>['Table','Plot']),p, 
+                -values=>['Table','Plot']),p,
             hidden( -name => 'act', default => 'query' ),
             hidden(-name=>'symbol',default=>$symbol),
             hidden(-name=>'run',default=>['1']),
@@ -399,35 +399,35 @@ if($action eq "view"){
         <th>Your Share</th>
         <th>Your Value</th>
         </tr>
-        ";	
+        ";
         if($#holdings >=0){
             for(my $i=0;$i<=$#holdings;$i++){
-                #give a table to show the daily info 
+                #give a table to show the daily info
                 my $symbol = $holdings[$i][0];
                 @holdInfo = getDailyInfo($symbol);
-		### get xianzhi
+                ### get xianzhi
                 my $latest_price = $holdings[$i][1] * getLatestPrice($symbol);
                 my $value = $latest_price;
                 $total_value += $value;
 
                 $out .= "<tr>
                 <td><a href=\"portfolio.pl?act=hold_trans&p_id=$p_id&symbol=$symbol\">$symbol</a></td>
-                <td>$holdInfo[0]</td> 
+                <td>$holdInfo[0]</td>
                 <td>$holdInfo[1]</td>
                 <td>$holdInfo[2]</td>
                 <td>$holdInfo[3]</td>
                 <td>$holdInfo[4]</td>
                 <td>$holdInfo[5]</td>
                 <td>$holdInfo[6]</td>
-                <td>$holdings[$i][1]</td> 
-                <td>$value</td> 
+                <td>$holdings[$i][1]</td>
+                <td>$value</td>
                 </tr>";
             }
         }
         $out .="</table>";
         print $out;
-	my $trans_value = sellTotal($p_id) - buyTotal($p_id);
-	my $net = $total_value + $trans_value;
+        my $trans_value = sellTotal($p_id) - buyTotal($p_id);
+        my $net = $total_value + $trans_value;
         print "<p>  Total Current Value \$$total_value</p><p>+ Transaction Value \$$trans_value</p><p> = Net Income \$$net </p>";
 
         print "<h3>Actions</h3>";
@@ -435,7 +435,7 @@ if($action eq "view"){
         print "<p><a href=\"portfolio.pl?act=history&p_id=$p_id\">View History</a></p>";
         print "<p><a href=\"portfolio.pl?act=buy_stock&p_id=$p_id\">Buy Stock</a></p>";
         print "<p><a href=\"portfolio.pl?act=sell_stock&p_id=$p_id\">Sell Stock</a></p>";
-     	print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">View Future</a></p>";
+        print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">View Future</a></p>";
         print "<p><a href=\"portfolio.pl?act=manage-portfolio\">Return</a></p><br>";
     }
 }
@@ -444,71 +444,71 @@ if($action eq "view_future"){
     if(!$run){
         if(url_param('p_id')){
             print "<h3>Let's see!</h3>";
-	    my $p_id = url_param('p_id');
+            my $p_id = url_param('p_id');
             my @stockHolds=();
             my (@holdings,$error) = ShowStockHoldings($p_id);
             for(my $j=0;$j < $#holdings;$j++){
                 push(@stockHolds,$holdings[$j][0]);
             }
             print start_html(-title=>'FUTURE'),
-	     start_form(-name=>'ViewFuture'),
+            start_form(-name=>'ViewFuture'),
             "Choose a holding: ",radio_group(-name=>'hold',
                 -values=>\@stockHolds),p,
-	    "Future Date (MM/DD/YY, Will override dropbox): ",textfield(-name=>'fudate',-id=>'fu'),p,
+            "Future Date (MM/DD/YY, Will override dropbox): ",textfield(-name=>'fudate',-id=>'fu'),p,
             #"SYMBOL",textfield(-name=>'symbol'),p,
-	    "or choose one time Range:",popup_menu(
-		-name   => 't',
-		-values => [
-			'',
-			'Tomorrow',
-			'One week from now',
-			'One month from now',
-			'One quarter to now',
-			'One year from now'
-		]
-	  ),p,
+            "or choose one time Range:",popup_menu(
+                -name   => 't',
+                -values => [
+                    '',
+                    'Tomorrow',
+                    'One week from now',
+                    'One month from now',
+                    'One quarter to now',
+                    'One year from now'
+                ]
+            ),p,
             "Plot or Table:",radio_group(-name=>'distype',
-                -values=>['Table','Plot']),p, 
+                -values=>['Table','Plot']),p,
             hidden( -name => 'pid', default => [$p_id] ),
             hidden( -name => 'act', default => 'view_future' ),
             hidden(-name=>'run',default=>['1']),
             submit(-name=>'future', -value => 'View Future'),p,
             end_form,
-	end_html;
-        }   
-    	
+            end_html;
+        }
+
     }
     else{
-	my $hold = param('hold');
-       	my $p_id = param('pid');
-	my $t      = param("t");
-	my $from   = time;
-	my $to     = param('fudate');
-	$to = parsedate($to);
-	if ($t) {
-		if ( $t eq "Tomorrow" ) {
-			$to = $from + 86400;
-		}
-		elsif ( $t eq "One week from now" ) {
-			$to = $from + 604800;
-		}
-		elsif ( $t eq "One month from now" ) {
-			$to = $from + 2628000;
-		}
-		elsif ( $t eq "One quarter from now" ) {
-			$to = $from + 7884000;
-		}
-		elsif ( $t eq "One year from now" ) {
-			$to = $from + 31540000;
-		}
-	}
-		if ( $from && $to ) {
-		 	print "$from $to $t $hold";
-			my $result = stockFutureValue( $hold, $from, $to );
-			print $result;
-		}
+        my $hold = param('hold');
+        my $p_id = param('pid');
+        my $t      = param("t");
+        my $from   = time;
+        my $to     = param('fudate');
+        $to = parsedate($to);
+        if ($t) {
+            if ( $t eq "Tomorrow" ) {
+                $to = $from + 86400;
+            }
+            elsif ( $t eq "One week from now" ) {
+                $to = $from + 604800;
+            }
+            elsif ( $t eq "One month from now" ) {
+                $to = $from + 2628000;
+            }
+            elsif ( $t eq "One quarter from now" ) {
+                $to = $from + 7884000;
+            }
+            elsif ( $t eq "One year from now" ) {
+                $to = $from + 31540000;
+            }
+        }
+        if ( $from && $to ) {
+            print "$from $to $t $hold";
+            my $result = stockFutureValue( $hold, $from, $to );
+            print $result;
+        }
 
-	print "<h3>See what?</h3>";
+        print "<h3>See what?</h3>";
         print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return Porfolio View</a></p>";
     }
     my $p_id= url_param('p_id');
@@ -519,19 +519,19 @@ if($action eq "hold_trans"){
     my $p_id = url_param('p_id');
     my $symbol = url_param('symbol');
     if(!$run){
-	if($p_id){
-   	print "<h3>Transaction history of $symbol in $p_id.</h3>";
-	my($str,$err) = getHoldTrans($p_id,$symbol);
-	if(!$err){
-	    print $str;
-	    }
-	else{
-	    print $err;
-	}
+        if($p_id){
+            print "<h3>Transaction history of $symbol in $p_id.</h3>";
+            my($str,$err) = getHoldTrans($p_id,$symbol);
+            if(!$err){
+                print $str;
+            }
+            else{
+                print $err;
+            }
+        }
     }
-    }   
     else{
-	print "hello";
+        print "hello";
     }
     print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">return</a></p>";
 }
@@ -614,7 +614,7 @@ if($action eq "sell_stock"){
 }
 
 if($action eq 'history'){
-    if(!$run){	
+    if(!$run){
         if(url_param('p_id')){
             my $p_id = url_param('p_id');
             my @stockHolds=();
@@ -628,39 +628,39 @@ if($action eq 'history'){
                 -values=>\@stockHolds),p,
             #"SYMBOL",textfield(-name=>'symbol'),p,
             "Choose options: ",checkbox_group(-name=>'options',
-                ###?????get values from databases????### 
-                -values=>['open','low','high','close','volume']),p, 
+                ###?????get values from databases????###
+                -values=>['open','low','high','close','volume']),p,
             "From", textfield( -name => 'from' ),
             "MM/DD/YEAR",p,
             "To", textfield( -name => 'to' ),
             "MM/DD/YEAR", p,
-	    "Time Range:",popup_menu(
-		-name   => 't',
-		-values => [
-			'',
-			'Yesterday',
-			'Last week to now',
-			'Last month to now',
-			'Last quarter to now',
-			'Last year to now',
-			'Last five years to now'
-		]
-	  ),p,
+            "Time Range:",popup_menu(
+                -name   => 't',
+                -values => [
+                    '',
+                    'Yesterday',
+                    'Last week to now',
+                    'Last month to now',
+                    'Last quarter to now',
+                    'Last year to now',
+                    'Last five years to now'
+                ]
+            ),p,
             "Plot or Table:",radio_group(-name=>'distype',
-                -values=>['Table','Plot']),p, 
+                -values=>['Table','Plot']),p,
             hidden( -name => 'pid', default => [$p_id] ),
             hidden( -name => 'act', default => 'history' ),
             hidden(-name=>'run',default=>['1']),
             submit(-name=>'viewoption', -value => 'View Optional History'),p,
             end_form;
-        }   
+        }
         my $p_id = url_param('p_id');
         print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return</a></p>";
     }
     else {
         my $from=param('from');
         my $to = param('to');
-	my $t = param('t');
+        my $t = param('t');
         my $distype=param('distype');
         my $hold = param('hold');
         my $p_id = param('pid');
@@ -710,9 +710,9 @@ if($action eq "statistics"){
             submit(-name=>'beta',-value=>'View Beta'),
             p,
             end_form;
-        } 
-        my $p_id = url_param('p_id'); 
-        print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">return</a></p>"; 
+        }
+        my $p_id = url_param('p_id');
+        print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">return</a></p>";
     }
     else{
         my $field1=param('field1');
@@ -732,18 +732,18 @@ if($action eq "statistics"){
             if($#holdings<1){
                 print "choose at least two stocks.<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">return</p>";
             }
-            else{    
+            else{
                 print getCOV($field1,$field2,$type,$cotype,$from,$to,$p_id,$holdings);
                 print "choose at least two stocks.<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">return</p>";
             }
         }
-	if(param('beta')){
- 	    
-	    my $beta = getBeta($holdings,$from,$to);
-	    print $beta;
+        if(param('beta')){
+
+            my $beta = getBeta($holdings,$from,$to);
+            print $beta;
             print "choose at least two stocks.<p><a href=\"portfolio.pl?act=statistics&p_id=$p_id\">return</p>";
-	}
-    }	
+        }
+    }
 }
 
 
@@ -871,13 +871,13 @@ sub BuyStock{
     my $total = $amount * $price;
 
     my @query_list = (
-        "insert into stock_transactions 
-        (id,portfolio_id,symbol,share_amount,transaction_type,strike_price,transaction_time) 
+        "insert into stock_transactions
+        (id,portfolio_id,symbol,share_amount,transaction_type,strike_price,transaction_time)
         values(stock_transactions_id.nextval,$p_id,'$symbol',$amount,1,$price,current_timestamp)",
 
         "merge into stock_holdings using dual on (symbol='$symbol' and portfolio_id=$p_id)
         when matched then update set share_amount=share_amount+$amount
-        when not matched then insert (portfolio_id,symbol,share_amount) 
+        when not matched then insert (portfolio_id,symbol,share_amount)
         values ($p_id,'$symbol',$amount)",
 
         "update portfolio_accounts set cash=cash-$total where id=$p_id"
@@ -897,13 +897,13 @@ sub SellStock{
     my $total = $amount * $price;
 
     my @query_list = (
-        "insert into stock_transactions 
-        (id,portfolio_id,symbol,share_amount,transaction_type,strike_price,transaction_time) 
+        "insert into stock_transactions
+        (id,portfolio_id,symbol,share_amount,transaction_type,strike_price,transaction_time)
         values(stock_transactions_id.nextval,$p_id,'$symbol',$amount,2,$price,current_timestamp)",
 
         "merge into stock_holdings using dual on (symbol='$symbol')
         when matched then update set share_amount=share_amount-$amount
-        when not matched then insert (portfolio_id,symbol,share_amount) 
+        when not matched then insert (portfolio_id,symbol,share_amount)
         values ($p_id,'$symbol',$amount)",
 
         "update portfolio_accounts set cash=cash+$total where id=$p_id"
@@ -915,8 +915,8 @@ sub SellStock{
 
 sub downloadIXIC{
     my ($nfrom,$nto) = @_;
-   # my $nfrom='last year';
-   # my $nto = 'now';
+    # my $nfrom='last year';
+    # my $nto = 'now';
     if($nfrom eq ''){$nfrom='last year';}
     if($nto eq ''){$nto='now';}
     $nfrom = parsedate($nfrom);
@@ -942,16 +942,16 @@ sub downloadIXIC{
         push(@line,$qvolume);
         ####insert new data into stocks_daily##
         my $err=DailyAddnew(@line);
-     	
-    print @line,"<br>";
-   }
+
+        print @line,"<br>";
+    }
 }
 
 
 ######## using ^IXIC latest one year data to calculate #######
 sub getBeta{
     my ($holdings,$from,$to) = @_;
-    #downloadIXIC($from,$to);   
+    #downloadIXIC($from,$to);
     my $out="<h3>Beta of $holdings</h3>";
     my @stockHolds=split(',',$holdings);
     my $s1;
@@ -967,136 +967,136 @@ sub getBeta{
 
 #first, get means and vars for the individual columns that match
 
-            $sql = "select count(*),avg(l.close),stddev(l.close),avg(r.close),stddev(r.close) from Stocks_view1 l join Stocks_view1 r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
-            $sql.= " and l.timestamp>=$from" if $from;
-            $sql.= " and l.timestamp<=$to" if $to;
+        $sql = "select count(*),avg(l.close),stddev(l.close),avg(r.close),stddev(r.close) from Stocks_view1 l join Stocks_view1 r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+        $sql.= " and l.timestamp>=$from" if $from;
+        $sql.= " and l.timestamp<=$to" if $to;
 
-            ($count, $mean_f1,$std_f1, $mean_f2, $std_f2) = ExecStockSQL("ROW",$sql);
+        ($count, $mean_f1,$std_f1, $mean_f2, $std_f2) = ExecStockSQL("ROW",$sql);
 
 #skip this pair if there isn't enough data
-            if ($count<30) { # not enough data
-                $covar{$s1}='NODAT';
-                $corrcoeff{$s1}='NODAT';
-            } else {
+        if ($count<30) { # not enough data
+            $covar{$s1}='NODAT';
+            $corrcoeff{$s1}='NODAT';
+        } else {
 
-                #otherwise get the covariance
+            #otherwise get the covariance
 
-                $sql = "select avg((l.close - $mean_f1)*(r.close - $mean_f2)) from Stocks_view1 l join Stocks_view1 r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
-                $sql.= " and l.timestamp>= $from" if $from;
-                $sql.= " and l.timestamp<= $to" if $to;
+            $sql = "select avg((l.close - $mean_f1)*(r.close - $mean_f2)) from Stocks_view1 l join Stocks_view1 r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='^IXIC'";
+            $sql.= " and l.timestamp>= $from" if $from;
+            $sql.= " and l.timestamp<= $to" if $to;
 
-                ($covar{$s1}) = ExecStockSQL("ROW",$sql);
+            ($covar{$s1}) = ExecStockSQL("ROW",$sql);
 
 #and the correlationcoeff
 
-                $corrcoeff{$s1} = $covar{$s1}/($std_f2*$std_f2);
+            $corrcoeff{$s1} = $covar{$s1}/($std_f2*$std_f2);
 
-            }
-         
+        }
+
     }
 
     $out .="<table border=\"1\">
     <tr><th>------</th>";
     foreach (@stockHolds){
         $out.="<th>$_</th>";
-    }  
+    }
     $out.="</tr>";
     $out .="<tr><td>Beta</td>";
 
     for (my $i=0;$i<=$#stockHolds;$i++) {
         $s1=$stockHolds[$i];
-            $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.8f',$corrcoeff{$s1});
-            $out .= "<td>$corrcoeff{$s1}</td>";
+        $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.8f',$corrcoeff{$s1});
+        $out .= "<td>$corrcoeff{$s1}</td>";
     }
     $out .= "</tr>";
     $out.="</tabel>";
     return $out;
 }
 
-##### newest 
+##### newest
 sub getHoldTrans{
     my($p_id,$symbol) =@_;
     my @rows;
-    eval { 
+    eval {
         @rows = ExecSQL($dbuser, $dbpasswd, "select symbol,share_amount,strike_price,share_amount*strike_price,transaction_type,transaction_time from stock_transactions where portfolio_id =$p_id and symbol='$symbol'",undef);
-  };
-    if ($@) { 
-	return (undef,$@);
+    };
+    if ($@) {
+        return (undef,$@);
     }else {
-    	return (MakeTable("Transaction History","2D",["symbol","share_amount","strike","trans_amount","buy1/sell2","time"],@rows),$@);
+        return (MakeTable("Transaction History","2D",["symbol","share_amount","strike","trans_amount","buy1/sell2","time"],@rows),$@);
     }
 }
 
 #####newest function
 sub sellTotal{
-	my ($p_id)=@_;
-    	my @rows;
-    	eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+    my ($p_id)=@_;
+    my @rows;
+    eval {@rows =  ExecSQL($dbuser,$dbpasswd,
             "select sum(share_amount * strike_price ) from stock_transactions where portfolio_id = ? and transaction_type =2",undef,$p_id);};
-    	return $rows[0][0];
+    return $rows[0][0];
 }
 
 #####newest function
 sub buyTotal{
-	my ($p_id)=@_;
-    	my @rows;
-    	eval {@rows =  ExecSQL($dbuser,$dbpasswd,
+    my ($p_id)=@_;
+    my @rows;
+    eval {@rows =  ExecSQL($dbuser,$dbpasswd,
             "select sum(share_amount * strike_price ) from stock_transactions where portfolio_id = ? and transaction_type =1",undef,$p_id);};
-    	return $rows[0][0];
+    return $rows[0][0];
 }
 
 ######new function:predict #####
 sub stockFutureValue{
-	my ( $symbol, $from, $to ) = @_;
-	my $days_ahead = int( ( $to - $from ) / 86400.0 );
-	print "<p>Total days: ", $days_ahead;
-	system
-	  "~/www/portfolio/get_data.pl --close --from=$from --to=$to $symbol > _plot.in";
-	system
-	  "~/www/portfolio/time_series_project _plot.in $days_ahead AR 16 1>predictor.out";
-	system "tail -n $days_ahead predictor.out > predictor.plot";
+    my ( $symbol, $from, $to ) = @_;
+    my $days_ahead = int( ( $to - $from ) / 86400.0 );
+    print "<p>Total days: ", $days_ahead;
+    system
+    "~/www/portfolio/get_data.pl --close --from=$from --to=$to $symbol > _plot.in";
+    system
+    "~/www/portfolio/time_series_project _plot.in $days_ahead AR 16 1>predictor.out";
+    system "tail -n $days_ahead predictor.out > predictor.plot";
 
-	my $num_years  = ( $to - $from ) / 31556926.0;
-	my $num_months = ( $to - $from ) / 2629743.0;
-	my $num_days   = ( $to - $from ) / 86400.0;
+    my $num_years  = ( $to - $from ) / 31556926.0;
+    my $num_months = ( $to - $from ) / 2629743.0;
+    my $num_days   = ( $to - $from ) / 86400.0;
 
-	my @xlabel;
+    my @xlabel;
 
-	if ( $num_months > 24 ) {
-		@xlabel = PlotwithYear( $from, $to );
-	}
-	elsif ( $num_days > 60 ) {
-		@xlabel = PlotwithMonth( $from, $to );
-	}
-	else {
-		@xlabel = PlotwithDay( $from, $to );
-	}
+    if ( $num_months > 24 ) {
+        @xlabel = PlotwithYear( $from, $to );
+    }
+    elsif ( $num_days > 60 ) {
+        @xlabel = PlotwithMonth( $from, $to );
+    }
+    else {
+        @xlabel = PlotwithDay( $from, $to );
+    }
 
-	my $xtics = "(" . join( ", ", @xlabel ) . ")";
-	$from = localtime($from);
-	$to   = localtime($to);
-	print "<p>From: $from\n";
-	print "To: $to\n";
-	my $outfile =
-	  GnuPlotFuture( "$symbol", "predictor.plot", "image.png", "$from", "$to",
-		"$xtics" );
-	print "<img src=\"" . $outfile . "\">";    
+    my $xtics = "(" . join( ", ", @xlabel ) . ")";
+    $from = localtime($from);
+    $to   = localtime($to);
+    print "<p>From: $from\n";
+    print "To: $to\n";
+    my $outfile =
+    GnuPlotFuture( "$symbol", "predictor.plot", "image.png", "$from", "$to",
+        "$xtics" );
+    print "<img src=\"" . $outfile . "\">";
 }
 
 ##new func
 sub GnuPlotFuture{
-   my ($symbol, $datafile, $outputfile,$from,$to,$xtics)=@_;
-   my $format = "%Y";		 
-   open(GNUPLOT,"|gnuplot");
-   print GNUPLOT "set terminal png\n";
-   print GNUPLOT "set output \"$outputfile\"\n";
-   print GNUPLOT "set xtics $xtics \n";
-   print GNUPLOT "set size 2.0, 1.0\n";
-   print GNUPLOT "set style fill empty\n";
-   print GNUPLOT "set title '$symbol'\nset xlabel 'Time' 0.0,-1.0\nset ylabel 'Price'\n";
-   print GNUPLOT "plot \"$datafile\" using 3 with linespoints\n";
-   close(GNUPLOT);
-   return $outputfile;
+    my ($symbol, $datafile, $outputfile,$from,$to,$xtics)=@_;
+    my $format = "%Y";
+    open(GNUPLOT,"|gnuplot");
+    print GNUPLOT "set terminal png\n";
+    print GNUPLOT "set output \"$outputfile\"\n";
+    print GNUPLOT "set xtics $xtics \n";
+    print GNUPLOT "set size 2.0, 1.0\n";
+    print GNUPLOT "set style fill empty\n";
+    print GNUPLOT "set title '$symbol'\nset xlabel 'Time' 0.0,-1.0\nset ylabel 'Price'\n";
+    print GNUPLOT "plot \"$datafile\" using 3 with linespoints\n";
+    close(GNUPLOT);
+    return $outputfile;
 }
 
 sub PlotwithYear {
@@ -1104,9 +1104,9 @@ sub PlotwithYear {
     my @xlabel;
     my $fromyear = 1900 + (localtime($from))[5];
     my $toyear = 1900 + (localtime($to))[5];
-	if ($from > timelocal(0,0,0,1,0,$fromyear)) {
-		$fromyear+=1;
-	}
+    if ($from > timelocal(0,0,0,1,0,$fromyear)) {
+        $fromyear+=1;
+    }
     foreach ($fromyear..$toyear) {
         push @xlabel, "\"$_\" " . timelocal(0,0,0,1,0,$_);
     }
@@ -1146,7 +1146,7 @@ sub PlotwithMonth {
 sub PlotwithDay {
     my ($from, $to) = @_;
     my @xlabel;
-    
+
     my @mons = qw(NOF Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
     my ($fromday, $frommonth, $fromyear) = (localtime($from))[3,4,5];
     $fromyear += 1900;
@@ -1171,63 +1171,35 @@ sub PlotwithDay {
     return @xlabel;
 }
 
-##new function :  maybe insert into stocks table##
-sub getHist{
+sub getHist {
     my ($hold,$distype,$options,$from,$to,$t) = @_;
-### download from Yahoo!###
-    my $hold = uc($hold);
-    my $nfrom='last year';
-    my $nto = 'now';
-    $nfrom = parsedate($nfrom);
-    $nfrom = ParseDateString("epoch $nfrom");
-    $nto = parsedate($nto);
-    $nto = ParseDateString("epoch $nto");
-    my %query=(symbols => [$hold],
-        start_date => $nfrom,
-        end_date => $nto,
-    );
-    my $q = new Finance::QuoteHist::Yahoo(%query);
-    foreach my $row ($q->quotes()) {
-        my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @$row;
-        my @line;
-        my $newd = parsedate($qdate);
-        push(@line,$qsymbol);
-        push(@line,$newd);
-        push(@line,$qopen);
-        push(@line,$qhigh);
-        push(@line,$qlow);
-        push(@line,$qclose);
-        push(@line,$qvolume);
-        ####insert new data into stocks_daily##
-        my $err =DailyAdd(@line);
-    #print @line,"<br>";
-   }
     my @data=();
-    if($options eq ''){$options = 'close';}
-    my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
+    if ($options eq '') {$options = 'close';}
     if ($from ne "") { $from=parsedate($from);}
     if ($to ne "") { $to=parsedate($to); }
-	if ($t ne "") {
-		$to = time;
-		if ( $t eq "Yesterday" ) {
-		   $from = $to - 86400;
-		}
-		elsif ( $t eq "Last week to now" ) {
-			$from = $to - 604800;
-		}
-		elsif ( $t eq "Last month to now" ) {
-			$from = $to - 2628000;
-		}
-		elsif ( $t eq "Last quarter to now" ) {
-			$from = $to - 7884000;
-		}
-		elsif ( $t eq "Last year to now" ) {
-			$from = $to - 31540000;
-		}
-		elsif ( $t eq "Last five years to now" ) {
-			$from = $to - 157700000;
-		}
-	}
+    if ($t ne "") {
+        $to = time;
+        if ( $t eq "Yesterday" ) {
+            $from = $to - 86400;
+        }
+        elsif ( $t eq "Last week to now" ) {
+            $from = $to - 604800;
+        }
+        elsif ( $t eq "Last month to now" ) {
+            $from = $to - 2628000;
+        }
+        elsif ( $t eq "Last quarter to now" ) {
+            $from = $to - 7884000;
+        }
+        elsif ( $t eq "Last year to now" ) {
+            $from = $to - 31540000;
+        }
+        elsif ( $t eq "Last five years to now" ) {
+            $from = $to - 157700000;
+        }
+    }
+
+    my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.=" union all select timestamp,$options from stocks_daily where symbol = '$hold'";
@@ -1235,36 +1207,23 @@ sub getHist{
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
     @data = ExecStockSQL("2D",$sql);
-    ##### select data from stocks_daily##
-    if($distype eq "Table"){
-	$from = ParseDateString("epoch $from");
-	$to = ParseDateString("epoch $to");
+
+    if ($distype eq "Table") {
+        $from = ParseDateString("epoch $from");
+        $to = ParseDateString("epoch $to");
         print "<h2>History of $hold from $from to $to dispaying in $distype</h2>";
         my $count = $#data + 1;
         print "$count new records<br>";
-        foreach my $line(@data){print "@$line<br>";} 
+        foreach my $line(@data) {
+            print "@$line<br>";
+        }
     }
-    if($distype eq "Plot"){
-        my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$hold'" ;
-        if (defined $from) { $from=parsedate($from);}
-        if (defined $to) { $to=parsedate($to); }
-        $sql.= " and timestamp >= $from" if $from;
-        $sql.= " and timestamp <= $to" if $to;
-        $sql.=" union all select timestamp,close from stocks_daily where symbol = '$hold'";
-        $sql.= " and timestamp >= $from" if $from;
-        $sql.= " and timestamp <= $to" if $to;
-        $sql.= ") order by timestamp";
-
-        my @rows = ExecStockSQL("2D",$sql);
-        #foreach my $line(@rows)
-        #   print "@$line<br>";
-
+    if ($distype eq "Plot") {
         open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
-
         print GNUPLOT "set term png\n";           # we want it to produce a PNG
         print GNUPLOT "set output\n";             # output the PNG to stdout
         print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
-        foreach my $r (@rows) {
+        foreach my $r (@data) {
             print GNUPLOT $r->[0], "\t", $r->[1], "\n";
         }
         print GNUPLOT "e\n"; # end of data
@@ -1272,7 +1231,7 @@ sub getHist{
         # Here gnuplot will print the image content
         #
         close(GNUPLOT);
-    }    
+    }
 }
 
 sub DailyAdd{
@@ -1291,10 +1250,10 @@ sub DailyAdd{
 }
 
 sub DailyAddnew{
-        my @row;
-	my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @_;
-        eval {@row= ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$qsymbol,$qdate,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
-	return @row;
+    my @row;
+    my ($qsymbol, $qdate, $qopen, $qhigh, $qlow, $qclose, $qvolume) = @_;
+    eval {@row= ExecSQL($dbuser,$dbpasswd,"insert into stocks_daily (symbol,timestamp,open,high,low,close,volume) VALUES (?,?,?,?,?,?,?)",undef,$qsymbol,$qdate,$qopen,$qhigh,$qlow,$qclose,$qvolume);};
+    return @row;
 }
 
 sub getDailyInfo{
@@ -1309,7 +1268,7 @@ sub getDailyInfo{
         print "<p>No Data</p>";
     }
     else {
-        foreach my $key (@info){ 
+        foreach my $key (@info){
             if (defined($quotes{$stock,$key})){
                 push(@data,$quotes{$stock,$key});}
             else{
@@ -1382,7 +1341,7 @@ sub getCOV{
                 $corrcoeff{$s1}{$s2} = $covar{$s1}{$s2}/($std_f1*$std_f2);
 
             }
-        } 
+        }
     }
 
 
@@ -1398,7 +1357,7 @@ sub getCOV{
     <tr><th>------</th>";
     foreach (@stockHolds){
         $out.="<th>$_</th>";
-    }  
+    }
     $out.="</tr>";
 
     for (my $i=0;$i<=$#stockHolds;$i++) {
@@ -1413,7 +1372,7 @@ sub getCOV{
                     $corrcoeff{$s1}{$s2} =  $corrcoeff{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$corrcoeff{$s1}{$s2});
                     $out .= "<td>$corrcoeff{$s1}{$s2}</td>";
                 } else {
-                    $covar{$s1}{$s2} = $covar{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$covar{$s1}{$s2}); 
+                    $covar{$s1}{$s2} = $covar{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$covar{$s1}{$s2});
                     $out .= "<td>$covar{$s1}{$s2}</td>";
                 }
             }
@@ -1434,7 +1393,7 @@ sub getVOL{
     <th>stddev($type)</th>
     </tr>";
     my @stockHolds=split(',',$holdings);
-#foreach (@stockHolds){print $_;} 
+#foreach (@stockHolds){print $_;}
     if ( defined $from ) { $from = parsedate($from); }
     if ( defined $to ) { $to = parsedate($to); }
     my $hold;
@@ -1442,16 +1401,16 @@ sub getVOL{
     foreach $hold(@stockHolds){
         my @row;
         my $sql="select count(*),avg($type),stddev($type) from (select timestamp,$type from CS339.StocksDaily where symbol ='$hold'";
-        $sql.=" and timestamp >=$from" if $from;	
+        $sql.=" and timestamp >=$from" if $from;
         $sql.=" and timestamp <=$to" if $to;
-	$sql .= " union all select timestamp,$type from stocks_daily where symbol='$hold'";
-        $sql.=" and timestamp >=$from" if $from;	
+        $sql .= " union all select timestamp,$type from stocks_daily where symbol='$hold'";
+        $sql.=" and timestamp >=$from" if $from;
         $sql.=" and timestamp <=$to" if $to;
-	$sql .= ")";
+        $sql .= ")";
         eval{@row=ExecSQL($dbuser,$dbpasswd,$sql,"ROW");};
         my ($cnt,$avg,$steddev) = @row;
-        $out.= "<tr><td>$hold</td><td>$cnt</td><td>$avg</td><td>$steddev</td><tr>"; 
-    }	
+        $out.= "<tr><td>$hold</td><td>$cnt</td><td>$avg</td><td>$steddev</td><tr>";
+    }
 
     $out.="</table><br>";
     return $out;
