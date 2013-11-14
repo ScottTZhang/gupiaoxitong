@@ -59,6 +59,8 @@ START WITH 1
 INCREMENT BY 1
 CACHE 1024;
 
+CREATE view stocks_view1 as select * from cs339.stocksdaily union all select * from stocks_daily; 
+
 INSERT INTO stocks (symbol) select distinct symbol from cs339.stockssymbols;
 
 INSERT INTO portfolio_users (name,password,email) VALUES ('root','rootroot','root@root.com');

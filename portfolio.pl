@@ -447,7 +447,7 @@ if($action eq "view_future"){
             my $p_id = url_param('p_id');
             my @stockHolds=();
             my (@holdings,$error) = ShowStockHoldings($p_id);
-            for(my $j=0;$j < $#holdings;$j++){
+            for(my $j=0;$j <= $#holdings;$j++){
                 push(@stockHolds,$holdings[$j][0]);
             }
             print start_html(-title=>'FUTURE'),
@@ -464,11 +464,10 @@ if($action eq "view_future"){
                     'One week from now',
                     'One month from now',
                     'One quarter from now',
-                    'One year from now'
+                    'One year from now',
+		    'five years from now'
                 ]
             ),p,
-            "Plot or Table:",radio_group(-name=>'distype',
-                -values=>['Table','Plot']),p,
             hidden( -name => 'pid', default => [$p_id] ),
             hidden( -name => 'act', default => 'view_future' ),
             hidden(-name=>'run',default=>['1']),
@@ -486,7 +485,7 @@ if($action eq "view_future"){
         my $to     = param('fudate');
 	my $distype = param('distype');
         $to = parsedate($to);
-        if ($t) {
+        if ($t ne "") {
             if ( $t eq "Tomorrow" ) {
                 $to = $from + 86400;
             }
@@ -502,10 +501,12 @@ if($action eq "view_future"){
             elsif ( $t eq "One year from now" ) {
                 $to = $from + 31540000;
             }
+	    elsif ( $t eq "five years from now" ) {
+		$to = $from + 157700000;
+	    }
         }
         if ( $from && $to ) {
-            print "$from $to $t $hold";
-            my $result = stockFutureValue( $hold, $from, $to,$distype );
+            my $result = stockFutureValue( $hold, $from, $to );
             print $result;
         }
 
@@ -620,7 +621,7 @@ if($action eq 'history'){
             my $p_id = url_param('p_id');
             my @stockHolds=();
             my (@holdings,$error) = ShowStockHoldings($p_id);
-            for(my $j=0;$j < $#holdings;$j++){
+            for(my $j=0;$j <= $#holdings;$j++){
                 push(@stockHolds,$holdings[$j][0]);
             }
 
@@ -681,7 +682,7 @@ if($action eq "statistics"){
             my $p_id = url_param('p_id');
             my @stockHolds=();
             my (@holdings,$error) = ShowStockHoldings($p_id);
-            for(my $j=0;$j < $#holdings;$j++){
+            for(my $j=0;$j <=$#holdings;$j++){
                 push(@stockHolds,$holdings[$j][0]);
             }
 
@@ -1007,6 +1008,7 @@ sub getBeta{
     }
    
     $out.="</tabel>";
+    $out .= $sql;
     return $out;
 }
 
@@ -1044,7 +1046,7 @@ sub buyTotal{
 
 ######new function:predict #####
 sub stockFutureValue{
-    my ( $symbol, $from, $to,$distype ) = @_;
+    my ( $symbol, $from, $to ) = @_;
     my $days_ahead = int( ( $to - $from ) / 86400.0 );
     print "<p>Total days: ", $days_ahead;
     system
@@ -1069,25 +1071,25 @@ sub stockFutureValue{
         @xlabel = PlotwithDay( $from, $to );
     }
 
+    #if ($distype eq "Plot"){
     my $xtics = "(" . join( ", ", @xlabel ) . ")";
     $from = localtime($from);
     $to   = localtime($to);
     print "<p>From: $from\n";
     print "To: $to</p>";
-    if ($distype eq 'Plot'){
     my $outfile =
     GnuPlotFuture( "$symbol", "predictor.plot", "image.png", "$from", "$to",
         "$xtics" );
     print "<img src=\"" . $outfile . "\">";
-    }
-    else {
-	open(FILE,"predictor.plot");
-	while(<FILE>){
-	    chomp;
-	print "$_<br>";
-	}
-	close FILE;
-    }
+    #}
+    #else {
+    #    open(FILE,"predictor.plot");
+    #    while(<FILE>){
+    #        chomp;
+    #    print "$_<br>";
+    #    }
+    #    close FILE;
+    #}
 }
 
 ##new func
@@ -1351,7 +1353,6 @@ sub getCOV{
         }
     }
 
-
     if($cotype eq 'cor') {
         $out .= "<h2>Correlation Coefficient Matrix</h2>";
     } else {
@@ -1420,6 +1421,7 @@ sub getVOL{
     }
 
     $out.="</table><br>";
+
     return $out;
 }
 
