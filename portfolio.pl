@@ -251,7 +251,7 @@ if($action eq "base"){
 }
 
 if($action eq "query"){
-	if(!$run){
+    if(!$run){
         print start_form(-name=>'Query Stocks'),
         h2('Input a symbol name'),
         "Symbol:",textfield(-name=>'symbol'),p,
@@ -260,23 +260,24 @@ if($action eq "query"){
         submit,
         end_form;
         hr;
-	}
-	else {
- 	    my $symbol = param('symbol');
-	    $symbol = uc($symbol);
-	    print $symbol;
-	    my @result = getDailyInfo($symbol);
-	    print join(" ",@result);
-	    print "<table border=\"1\"><tr>
-		   <th>date</th>
-		   <th>time</th>
-		   <th>high</th>
-		   <th>low</th>
-		   <th>close</th>
-		   <th>open</th>
-		   <th>volume</th></tr><tr>";
-	   foreach(@result) {print "<td>$_</td>";}
-	   print "</tr></table>";
+    }
+    else {
+        if (param('distype') ne "Plot") {
+            my $symbol = param('symbol');
+            $symbol = uc($symbol);
+            print $symbol;
+            my @result = getDailyInfo($symbol);
+            print join(" ",@result);
+            print "<table border=\"1\"><tr>
+            <th>date</th>
+            <th>time</th>
+            <th>high</th>
+            <th>low</th>
+            <th>close</th>
+            <th>open</th>
+            <th>volume</th></tr><tr>";
+            foreach(@result) {print "<td>$_</td>";}
+            print "</tr></table>";
 
             print start_form(-name=>'ViewHistory'),
             #"SYMBOL",textfield(-name=>'symbol'),p,
@@ -287,18 +288,18 @@ if($action eq "query"){
             "MM/DD/YEAR",p,
             "To", textfield( -name => 'to' ),
             "MM/DD/YEAR", p,
-	    "Time Range:",popup_menu(
-		-name   => 't',
-		-values => [
-			'',
-			'Yesterday',
-			'Last week to now',
-			'Last month to now',
-			'Last quarter to now',
-			'Last year to now',
-			'Last five years to now'
-		]
-	  ),p,
+            "Time Range:",popup_menu(
+                -name   => 't',
+                -values => [
+                    '',
+                    'Yesterday',
+                    'Last week to now',
+                    'Last month to now',
+                    'Last quarter to now',
+                    'Last year to now',
+                    'Last five years to now'
+                ]
+            ),p,
             "Plot or Table:",radio_group(-name=>'distype',
                 -values=>['Table','Plot']),p, 
             hidden( -name => 'act', default => 'query' ),
@@ -306,19 +307,23 @@ if($action eq "query"){
             hidden(-name=>'run',default=>['1']),
             submit(-name=>'viewoption', -value => 'View Optional History'),p,
             end_form;
-		if(param('viewoption')){
-			my $sym=param('symbol');
-			my $from=param('from');
-			my $to = param('to');
-			my $t = param('t');
-			my $distype=param('distype');
-			my @options = param('options');
-			my $options = join(',',@options);
-			
-            		getHist($sym,$distype,$options,$from,$to,$t);
-		}
-	}
-	print "<p><a href=\"portfolio.pl?act=base\">Return</a></p>";
+        }
+
+        if(param('viewoption')){
+            my $sym=param('symbol');
+            my $from=param('from');
+            my $to = param('to');
+            my $t = param('t');
+            my $distype=param('distype');
+            my @options = param('options');
+            my $options = join(',',@options);
+
+            getHist($sym,$distype,$options,$from,$to,$t);
+        }
+    }
+    if (param('distype') ne "Plot") {
+        print "<p><a href=\"portfolio.pl?act=base\">Return</a></p>";
+    }
 }
 
 if($action eq "create-portfolio"){
@@ -1229,7 +1234,6 @@ sub getHist{
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
-    print "three $hold, $from, $to";
     @data = ExecStockSQL("2D",$sql);
     ##### select data from stocks_daily##
     if($distype eq "Table"){
