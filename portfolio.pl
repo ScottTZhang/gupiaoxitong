@@ -436,7 +436,45 @@ if($action eq "view"){
         print "<p><a href=\"portfolio.pl?act=buy_stock&p_id=$p_id\">Buy Stock</a></p>";
         print "<p><a href=\"portfolio.pl?act=sell_stock&p_id=$p_id\">Sell Stock</a></p>";
         print "<p><a href=\"portfolio.pl?act=view_future&p_id=$p_id\">View Future</a></p>";
+        print "<p><a href=\"portfolio.pl?act=strategy&p_id=$p_id\">Automatic Trading Strategy</a></p>";
         print "<p><a href=\"portfolio.pl?act=manage-portfolio\">Return</a></p><br>";
+    }
+}
+
+if($action eq 'strategy'){
+    if(!$run){
+        if(url_param('p_id')){
+            my $p_id = url_param('p_id');
+            my @stockHolds=();
+            my (@holdings,$error) = ShowStockHoldings($p_id);
+            for(my $j=0;$j < $#holdings;$j++){
+                push(@stockHolds,$holdings[$j][0]);
+            }
+
+            print start_form(-name=>'Strategy'),
+            "Choose a holding: ",radio_group(-name=>'hold',
+                -values=>\@stockHolds),p,
+            "From", textfield( -name => 'from' ),
+            "MM/DD/YEAR",p,
+            "To", textfield( -name => 'to' ),
+            "MM/DD/YEAR", p,
+            "Initial Cash: ", textfield(-name => 'initial_cash'),p,
+            "Trade Cost: ", textfield(-name => 'trade_cost'),p,
+            hidden(-name => 'act', default => 'strategy'),
+            hidden(-name => 'run', default => ['1']),
+            submit(-name=>'strategy', -value => 'Submit'),p,
+            end_form;
+        }
+        my $p_id = url_param('p_id');
+        print "<p><a href=\"portfolio.pl?act=view&p_id=$p_id\">Return</a></p>";
+    }
+    else {
+        my $from=param('from');
+        my $to = param('to');
+        my $hold = param('hold');
+        my $initial_cash = param('initial_cash');
+        my $trade_cost = param('trade_cost');
+        Strategy($hold, $from, $to, $initial_cash, $trade_cost);
     }
 }
 
@@ -861,6 +899,90 @@ if($action eq "register"){
         }
 
     }
+}
+
+
+sub Strategy{
+    my ($hold, $from, $to, $initialcash, $tradecost) = @_;
+    my $last_cash=$initialcash;
+    my $laststock=0;
+    my $last_total=$last_cash;
+    my $last_total_after_trade_cost=$last_total;
+
+    my $cash=0;
+    my $stock=0;
+    my $total=0;
+    my $total_after_trade_cost=0;
+    my $day=0;
+
+    my @data=();
+    $from=parsedate($from);
+    $to=parsedate($to);
+
+    my $sql ="select * from (select timestamp,close from cs339.stocksdaily where symbol='$hold'" ;
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.=" union all select timestamp,close from stocks_daily where symbol = '$hold'";
+    $sql.= " and timestamp >= $from" if $from;
+    $sql.= " and timestamp <= $to" if $to;
+    $sql.= ") order by timestamp";
+    @data = ExecStockSQL("2D",$sql);
+
+
+    foreach my $r (@data) {
+        my $stockprice=$r->[1];
+
+        my $current_total=$last_cash+$laststock*$stockprice;
+        if ($current_total<=0) {
+            exit;
+        }
+
+        my $fractioncash=$last_cash/$current_total;
+        my $fractionstock=($laststock*$stockprice)/$current_total;
+        my $this_trade_cost=0;
+        if ($fractioncash >= 0.5 ) {
+            my $redist_cash=($fractioncash-0.5)*$current_total;
+            if ($redist_cash>0) {
+                $cash=$last_cash-$redist_cash;
+                $stock=$laststock+$redist_cash/$stockprice;
+                $this_trade_cost=$tradecost;
+            } else {
+                $cash=$last_cash;
+                $stock=$laststock;
+            }
+        }  else {
+            my $redist_cash=($fractionstock-0.5)*$current_total;
+            if ($redist_cash>0) {
+                $cash=$last_cash+$redist_cash;
+                $stock=$laststock-$redist_cash/$stockprice;
+                $this_trade_cost=$tradecost;
+            }
+        }
+
+        $total=$cash+$stock*$stockprice;
+        $total_after_trade_cost=($last_total_after_trade_cost-$last_total) - $this_trade_cost + $total;
+        $last_cash=$cash;
+        $laststock=$stock;
+        $last_total=$total;
+        $last_total_after_trade_cost=$total_after_trade_cost;
+
+        $day++;
+
+    }
+
+    my $roi = 100.0*($last_total-$initialcash)/$initialcash;
+    my $roi_annual = $roi/($day/365.0);
+
+    my $roi_at = 100.0*($last_total_after_trade_cost-$initialcash)/$initialcash;
+    my $roi_at_annual = $roi_at/($day/365.0);
+
+    print "Invested:                        \t$initialcash\n </br>";
+    print "Days:                            \t$day\n </br>";
+    print "Total:                           \t$last_total (ROI=$roi % ROI-annual = $roi_annual %)\n </br>";
+    print "Total-after \$$tradecost/day trade costs: \t$last_total_after_trade_cost (ROI=$roi_at % ROI-annual = $roi_at_annual %)\n </br>";
+
+
+
 }
 
 sub BuyStock{
