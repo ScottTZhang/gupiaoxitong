@@ -314,7 +314,7 @@ if($action eq "query"){
 			my $distype=param('distype');
 			my @options = param('options');
 			my $options = join(',',@options);
-			print "$sym";
+			
             		getHist($sym,$distype,$options,$from,$to,$t);
 		}
 	}
@@ -1170,6 +1170,7 @@ sub PlotwithDay {
 sub getHist{
     my ($hold,$distype,$options,$from,$to,$t) = @_;
 ### download from Yahoo!###
+    my $hold = uc($hold);
     my $nfrom='last year';
     my $nto = 'now';
     $nfrom = parsedate($nfrom);
@@ -1201,7 +1202,6 @@ sub getHist{
     my $sql ="select * from (select timestamp,$options from cs339.stocksdaily where symbol='$hold'" ;
     if ($from ne "") { $from=parsedate($from);}
     if ($to ne "") { $to=parsedate($to); }
-	print "the three times: $from $to $t";
 	if ($t ne "") {
 		$to = time;
 		if ( $t eq "Yesterday" ) {
@@ -1229,7 +1229,7 @@ sub getHist{
     $sql.= " and timestamp >= $from" if $from;
     $sql.= " and timestamp <= $to" if $to;
     $sql.= ") order by timestamp";
-
+    print "three $hold, $from, $to";
     @data = ExecStockSQL("2D",$sql);
     ##### select data from stocks_daily##
     if($distype eq "Table"){
@@ -1274,7 +1274,6 @@ sub getHist{
 sub DailyAdd{
     my ($symbol) = @_;
     my $con=Finance::Quote->new();
-
     my %quotes = $con->fetch("usa",$symbol);
     my $qdate = $quotes{$symbol,'date'};
     my $qopen = $quotes{$symbol,'open'};
