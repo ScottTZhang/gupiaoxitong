@@ -463,7 +463,7 @@ if($action eq "view_future"){
                     'Tomorrow',
                     'One week from now',
                     'One month from now',
-                    'One quarter to now',
+                    'One quarter from now',
                     'One year from now'
                 ]
             ),p,
@@ -484,6 +484,7 @@ if($action eq "view_future"){
         my $t      = param("t");
         my $from   = time;
         my $to     = param('fudate');
+	my $distype = param('distype');
         $to = parsedate($to);
         if ($t) {
             if ( $t eq "Tomorrow" ) {
@@ -504,7 +505,7 @@ if($action eq "view_future"){
         }
         if ( $from && $to ) {
             print "$from $to $t $hold";
-            my $result = stockFutureValue( $hold, $from, $to );
+            my $result = stockFutureValue( $hold, $from, $to,$distype );
             print $result;
         }
 
@@ -961,7 +962,7 @@ sub getBeta{
     my ($count,$mean_f1,$std_f1,$mean_f2, $std_f2)=@_;
     if (defined $from) { $from=parsedate($from);}
     if (defined $to) { $to=parsedate($to); }
-
+    my @varco=();
     for (my $i=0;$i<=$#stockHolds;$i++) {
         $s1=$stockHolds[$i];
 
@@ -992,23 +993,19 @@ sub getBeta{
             $corrcoeff{$s1} = $covar{$s1}/($std_f2*$std_f2);
 
         }
-
+	push (@varco, $std_f1/$mean_f1);
     }
 
     $out .="<table border=\"1\">
-    <tr><th>------</th>";
-    foreach (@stockHolds){
-        $out.="<th>$_</th>";
-    }
-    $out.="</tr>";
-    $out .="<tr><td>Beta</td>";
-
+    <tr><th>------</th><th>Beta</th><th>Variave Coefficient</th></tr>";
     for (my $i=0;$i<=$#stockHolds;$i++) {
+        $out.="<tr><td>$stockHolds[$i]</td>";
         $s1=$stockHolds[$i];
         $corrcoeff{$s1} =  $corrcoeff{$s1} eq "NODAT" ? "NODAT" : sprintf('%.8f',$corrcoeff{$s1});
         $out .= "<td>$corrcoeff{$s1}</td>";
+        $out .= "<td>$varco[$i]</td><tr>";
     }
-    $out .= "</tr>";
+   
     $out.="</tabel>";
     return $out;
 }
@@ -1047,7 +1044,7 @@ sub buyTotal{
 
 ######new function:predict #####
 sub stockFutureValue{
-    my ( $symbol, $from, $to ) = @_;
+    my ( $symbol, $from, $to,$distype ) = @_;
     my $days_ahead = int( ( $to - $from ) / 86400.0 );
     print "<p>Total days: ", $days_ahead;
     system
@@ -1076,11 +1073,21 @@ sub stockFutureValue{
     $from = localtime($from);
     $to   = localtime($to);
     print "<p>From: $from\n";
-    print "To: $to\n";
+    print "To: $to</p>";
+    if ($distype eq 'Plot'){
     my $outfile =
     GnuPlotFuture( "$symbol", "predictor.plot", "image.png", "$from", "$to",
         "$xtics" );
     print "<img src=\"" . $outfile . "\">";
+    }
+    else {
+	open(FILE,"predictor.plot");
+	while(<FILE>){
+	    chomp;
+	print "$_<br>";
+	}
+	close FILE;
+    }
 }
 
 ##new func
