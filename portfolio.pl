@@ -1304,6 +1304,7 @@ sub PlotwithDay {
 
 sub getHist {
     my ($hold,$distype,$options,$from,$to,$t) = @_;
+    my $hold= uc($hold);
     my @data=();
     if ($options eq '') {$options = 'close';}
     if ($from ne "") { $from=parsedate($from);}
